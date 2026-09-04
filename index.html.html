@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APISERVICE MONDE — Gestion intégrée</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7A5B1E">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="APISERVICE">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#FBF6EA; --surface:#FFFDF5; --surface-2:#F3EAD0;
+  --border:#E4D6A8; --border-strong:#CBB35C;
+  --text:#2B2412; --text-2:#6B5F3A; --text-3:#9C8F5E;
+  --sidebar-bg:#3A2E10; --sidebar-text:#EFE6C8; --sidebar-text-dim:#B8AC7E;
+  --accent:#B4791A; --accent-text:#7A4F0C;
+  --ok:#2F7D4F; --ok-bg:#E4F1E7;
+  --warn:#B47A1A; --warn-bg:#FAF1DF;
+  --danger:#B4341A; --danger-bg:#FBE9E4;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:230px;background:var(--sidebar-bg);color:var(--sidebar-text);flex-shrink:0;display:flex;flex-direction:column;padding:16px 0}
+.sidebar .brand{padding:0 16px 14px;font-weight:700;font-size:17px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:10px}
+.sidebar .brand small{display:block;font-weight:400;font-size:11px;color:var(--sidebar-text-dim);margin-top:2px}
+.nav-section{padding:10px 16px 4px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--sidebar-text-dim)}
+.sidebar button{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;background:none;border:none;color:var(--sidebar-text-dim);padding:9px 16px;font-size:13.5px;cursor:pointer;border-left:3px solid transparent}
+.sidebar button:hover{background:rgba(255,255,255,.06);color:var(--sidebar-text)}
+.sidebar button.active{background:rgba(255,255,255,.1);color:#fff;border-left-color:var(--accent);font-weight:600}
+.sidebar .badge{background:var(--danger);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px}
+.main{flex:1;padding:26px 30px;max-width:1200px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:15px;margin:0 0 10px}
+h3{font-size:14px;margin:16px 0 6px}
+.muted{color:var(--text-2);font-size:12.5px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.section{margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.stat .label{font-size:11.5px;color:var(--text-2)}
+.stat .value{font-size:22px;font-weight:700;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--text-2);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border-strong);font-size:11.5px}
+td{padding:7px 8px;border-bottom:1px solid var(--border)}
+.table-wrap{overflow-x:auto}
+input,select,textarea{font:inherit;padding:7px 9px;border:1px solid var(--border-strong);border-radius:7px;background:var(--surface);color:var(--text)}
+label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--text-2)}
+form.inline{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.btn{font:inherit;padding:8px 14px;border-radius:7px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text);cursor:pointer}
+.btn:hover{background:var(--border)}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{opacity:.92}
+.btn-sm{font-size:11px;padding:4px 8px}
+.btn-danger-outline{background:var(--danger-bg);color:var(--danger);border-color:var(--danger)}
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.pill-ok{background:var(--ok-bg);color:var(--ok)}
+.pill-warn{background:var(--warn-bg);color:var(--warn)}
+.pill-danger{background:var(--danger-bg);color:var(--danger)}
+.pill-muted{background:var(--surface-2);color:var(--text-2)}
+.pill-accent{background:#F2E4C0;color:var(--accent-text)}
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:30px;width:340px}
+.login-card h1{text-align:center;margin-bottom:2px}
+.login-card p.muted{text-align:center;margin-top:0}
+.login-card form{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.login-card .switch{text-align:center;margin-top:10px;font-size:12.5px}
+.login-card .switch a{color:var(--accent-text);cursor:pointer;text-decoration:underline}
+.topbar-actions{display:flex;justify-content:flex-end;gap:8px;margin-bottom:14px}
+#conn-banner .pill{margin-bottom:14px}
+@media print{
+  .sidebar,.topbar-actions,.no-print{display:none !important}
+  .layout{display:block}
+  .main{padding:0}
+  body{background:#fff}
+  .card{box-shadow:none;border:1px solid #ccc}
+}
+.modal-overlay{position:fixed;inset:0;background:rgba(40,30,10,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal-panel{background:var(--surface);border-radius:var(--radius);padding:20px;max-width:520px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 10px 34px rgba(0,0,0,.3)}
+.modal-panel h2{margin-top:0;display:flex;justify-content:space-between;align-items:center}
+.modal-close{cursor:pointer;background:none;border:none;font-size:20px;color:var(--text-2);line-height:1;padding:0 4px}
+.modal-panel form{display:flex;flex-direction:column;gap:10px}
+.modal-panel label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--text-2)}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<script>
+/* ============================== CONFIG & ÉTAT ============================== */
+const TABLES = ['sites','partenaires','articles','stock','recettes','recette_lignes',
+  'ordres_production','achats','ventes','mouvements','formations','sessions_formation',
+  'inscriptions','commandes_client','commande_lignes','paiements','tresorerie_operations'];
+
+let sb = null;
+let session = null;
+let currentTab = 'dashboard';
+let refreshTimer = null;
+
+let state = {
+  sites:[], partenaires:[], articles:[], stock:[], recettes:[], recette_lignes:[],
+  ordres_production:[], achats:[], ventes:[], mouvements:[], formations:[], sessions_formation:[],
+  inscriptions:[], commandes_client:[], commande_lignes:[], paiements:[], tresorerie_operations:[],
+  meta:{id:'singleton', solde_initial:0},
+  supabaseUrl: localStorage.getItem('apiservice_sb_url') || '',
+  supabaseKey: localStorage.getItem('apiservice_sb_key') || ''
+};
+
+function uid(p){ return p+'_'+Math.random().toString(36).slice(2,9); }
+function nowISO(){ return new Date().toISOString(); }
+function fmt(n){ return (Number(n)||0).toLocaleString('fr-FR',{maximumFractionDigits:2})+' F'; }
+function siteName(id){ return state.sites.find(s=>s.id===id)?.nom || '—'; }
+function articleObj(id){ return state.articles.find(a=>a.id===id); }
+function articleName(id){ return articleObj(id)?.nom || '—'; }
+function partenaireName(id){ return state.partenaires.find(p=>p.id===id)?.nom || '—'; }
+function formationName(id){ return state.formations.find(f=>f.id===id)?.titre || '—'; }
+function sessionLabel(id){ const s=state.sessions_formation.find(x=>x.id===id); if(!s) return '—'; return formationName(s.formation_id)+' — '+new Date(s.date_debut).toLocaleDateString('fr-FR'); }
+function localDateStr(d){ const dt=new Date(d); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+
+/* ============================== SUPABASE / PERSISTENCE ============================== */
+function initSupabase(){
+  if(state.supabaseUrl && state.supabaseKey){
+    try{ sb = window.supabase.createClient(state.supabaseUrl, state.supabaseKey); }catch(e){ sb=null; }
+  }
+}
+function dbError(table, action, error){
+  console.error(table, error);
+  alert("Erreur lors de l'enregistrement ("+action+" sur '"+table+"') :\n\n"+(error?.message||error)+"\n\nVotre modification n'a probablement PAS été sauvegardée sur le serveur. Vérifiez votre connexion et réessayez ; si ça persiste, envoyez-moi ce message exact.");
+}
+async function dbInsert(table, row){
+  if(sb){ const {error} = await sb.from(table).insert(row); if(error) dbError(table,'ajout',error); }
+}
+async function dbUpdate(table, id, patch){
+  if(sb){ const {error} = await sb.from(table).update(patch).eq('id', id); if(error) dbError(table,'modification',error); }
+}
+async function dbDelete(table, id){
+  if(sb){ const {error} = await sb.from(table).delete().eq('id', id); if(error) dbError(table,'suppression',error); }
+}
+async function dbClearTable(table){
+  if(sb){ const {error} = await sb.from(table).delete().neq('id','__never__'); if(error) dbError(table,'suppression groupée',error); }
+}
+async function dbUpsertSingleton(table, row){
+  if(sb){ const {error} = await sb.from(table).upsert(row); if(error) dbError(table,'enregistrement',error); }
+}
+
+async function refreshAll(){
+  if(!sb) return;
+  for(const t of TABLES){
+    const {data, error} = await sb.from(t).select('*').order('created_at',{ascending:false});
+    if(!error && data) state[t] = data;
+  }
+  const {data:metaData} = await sb.from('meta').select('*').eq('id','singleton').maybeSingle();
+  if(metaData) state.meta = metaData; else { state.meta = {id:'singleton', solde_initial:0}; await dbUpsertSingleton('meta', state.meta); }
+}
+
+function subscribeRealtime(){
+  if(!sb) return;
+  sb.channel('apiservice-realtime')
+    .on('postgres_changes', {event:'*', schema:'public'}, ()=>{
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(async ()=>{ await refreshAll(); render(); }, 350);
+    })
+    .subscribe();
+}
+
+function getStock(siteId, articleId){
+  const row = state.stock.find(s=>s.site_id===siteId && s.article_id===articleId);
+  return row ? Number(row.quantite) : 0;
+}
+async function setStock(siteId, articleId, qty){
+  let row = state.stock.find(s=>s.site_id===siteId && s.article_id===articleId);
+  qty = Math.max(0, Math.round(qty*100)/100);
+  if(row){ row.quantite = qty; await dbUpdate('stock', row.id, {quantite:qty}); }
+  else { row = {id:uid('stk'), site_id:siteId, article_id:articleId, quantite:qty}; state.stock.push(row); await dbInsert('stock', row); }
+}
+async function addMouvement(articleId, siteId, type, categorie, quantite, source){
+  const row = {id:uid('mv'), article_id:articleId, site_id:siteId, type, categorie, quantite, source:source||'', created_at:nowISO()};
+  state.mouvements.unshift(row);
+  await dbInsert('mouvements', row);
+}
+async function stockDelta(articleId, siteId, delta, categorie, label){
+  if(!delta) return;
+  await setStock(siteId, articleId, getStock(siteId, articleId) + delta);
+  await addMouvement(articleId, siteId, delta>0?'entree':'sortie', categorie, Math.abs(delta), label);
+}
+
+/* ============================== AUTHENTIFICATION ============================== */
+async function handleAuthChange(){
+  if(!sb) return;
+  const {data:{session:s}} = await sb.auth.getSession();
+  session = s;
+  sb.auth.onAuthStateChange(async (event, s2)=>{
+    const hadSession = !!session;
+    session = s2;
+    if(session && !hadSession){ await refreshAll(); subscribeRealtime(); }
+    render();
+  });
+  if(session){ await refreshAll(); subscribeRealtime(); }
+  render();
+}
+
+/* ============================== RENDU : LOGIN ============================== */
+let loginMode = 'signin';
+function renderLogin(){
+  document.getElementById('app').innerHTML = `
+  <div id="login-screen">
+    <div class="login-card">
+      <h1>APISERVICE MONDE</h1>
+      <p class="muted">Gestion intégrée</p>
+      <form id="form-login">
+        <label>Email<input type="email" name="email" required></label>
+        <label>Mot de passe<input type="password" name="password" required minlength="6"></label>
+        <button class="btn btn-primary" type="submit">${loginMode==='signin'?'Se connecter':"S'inscrire"}</button>
+      </form>
+      <div class="switch">
+        ${loginMode==='signin' ? `Pas de compte ? <a id="to-signup">Créer un compte</a>` : `Déjà un compte ? <a id="to-signin">Se connecter</a>`}
+      </div>
+    </div>
+  </div>`;
+  bindLoginHandlers();
+}
+function bindLoginHandlers(){
+  const toSignup = document.getElementById('to-signup');
+  if(toSignup) toSignup.onclick = ()=>{ loginMode='signup'; renderLogin(); };
+  const toSignin = document.getElementById('to-signin');
+  if(toSignin) toSignin.onclick = ()=>{ loginMode='signin'; renderLogin(); };
+  const f = document.getElementById('form-login');
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const fd = new FormData(f);
+    const email = fd.get('email'), password = fd.get('password');
+    if(!sb){ alert("Connectez d'abord l'application à Supabase depuis Paramètres."); return; }
+    if(loginMode==='signin'){
+      const {error} = await sb.auth.signInWithPassword({email, password});
+      if(error) alert('Erreur de connexion : '+error.message);
+    } else {
+      const {error} = await sb.auth.signUp({email, password});
+      if(error) alert("Erreur d'inscription : "+error.message);
+      else alert('Compte créé. Si la confirmation par email est activée, vérifiez votre boîte de réception, sinon vous êtes connecté.');
+    }
+  };
+}
+
+/* ============================== NAVIGATION ============================== */
+const NAV = [
+  {label:'Tableau de bord', tabs:[['dashboard','Dashboard']]},
+  {label:'Opérations', tabs:[['achats','Achats'],['production','Production'],['ventes','Ventes'],['formations','Formations'],['journal','Journal']]},
+  {label:'Stock', tabs:[['stock','Articles & Stock']]},
+  {label:'Finances', tabs:[['tresorerie','Trésorerie']]},
+];
+function titleOf(id){ for(const g of NAV) for(const [tid,label] of g.tabs) if(tid===id) return label; return id; }
+
+function renderSidebar(){
+  const groups = NAV.map(g=>`
+    <div class="nav-section">${g.label}</div>
+    ${g.tabs.map(([id,label])=>`<button data-tab="${id}" class="${currentTab===id?'active':''}"><span>${label}</span></button>`).join('')}
+  `).join('');
+  return `
+  <div class="sidebar">
+    <div class="brand">APISERVICE MONDE<small>Gestion intégrée</small></div>
+    ${groups}
+    <div class="nav-section">Configuration</div>
+    <button data-tab="parametres" class="${currentTab==='parametres'?'active':''}"><span>Paramètres</span></button>
+    <div style="flex:1"></div>
+    <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.12);margin-top:10px">
+      <button id="btn-signout" class="btn btn-sm" style="width:100%">Se déconnecter</button>
+      <div class="muted" style="margin-top:6px;font-size:10.5px;color:var(--sidebar-text-dim)">${session?.user?.email||''}</div>
+    </div>
+  </div>`;
+}
+
+/* ============================== DASHBOARD ============================== */
+function renderDashboard(){
+  const valeurStock = state.articles.reduce((s,a)=>s+state.sites.reduce((s2,site)=>s2+getStock(site.id,a.id),0)*a.prix_unitaire,0);
+  const today = localDateStr(new Date());
+  const ventesJour = state.ventes.filter(v=>localDateStr(v.created_at)===today).reduce((s,v)=>s+v.quantite*v.prix_unitaire,0);
+  const inscritsJour = state.inscriptions.filter(i=>localDateStr(i.created_at)===today).length;
+  const sessionsAVenir = state.sessions_formation.filter(s=>new Date(s.date_debut)>=new Date()).length;
+  const alertes = state.articles.filter(a=>state.sites.reduce((s,site)=>s+getStock(site.id,a.id),0) < a.seuil_min).length;
+  return `
+  <h1>Tableau de bord</h1>
+  <p class="muted">Vue d'ensemble de l'activité</p>
+  <div class="grid" style="margin-top:16px">
+    <div class="stat"><div class="label">Valeur du stock</div><div class="value">${fmt(valeurStock)}</div></div>
+    <div class="stat"><div class="label">Ventes du jour</div><div class="value">${fmt(ventesJour)}</div></div>
+    <div class="stat"><div class="label">Sessions de formation à venir</div><div class="value">${sessionsAVenir}</div></div>
+    <div class="stat"><div class="label">Inscriptions aujourd'hui</div><div class="value">${inscritsJour}</div></div>
+    <div class="stat"><div class="label">Articles sous seuil</div><div class="value" style="color:${alertes?'var(--danger)':'inherit'}">${alertes}</div></div>
+  </div>`;
+}
+
+/* ============================== STOCK / ARTICLES ============================== */
+function renderStock(){
+  const q = (window.__stockFilter||'').toLowerCase();
+  const list = state.articles.filter(a=>!q || a.nom.toLowerCase().includes(q) || (a.code_barre||'').toLowerCase().includes(q));
+  return `
+  <h1>Articles &amp; Stock</h1>
+  <p class="muted">Miel brut, produits finis / dérivés, et équipement</p>
+  <div class="card">
+    <form class="inline" id="form-stock-search">
+      <label style="min-width:220px">Rechercher<input type="text" name="q" value="${window.__stockFilter||''}" placeholder="Nom ou code-barres"></label>
+      <button class="btn" type="submit">Filtrer</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Stock par site</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Article</th><th>Catégorie</th><th>Code-barres</th>${state.sites.map(s=>`<th>${s.nom}</th>`).join('')}<th>Seuil min</th><th>Prix unitaire</th><th></th></tr>
+      ${list.map(a=>`<tr>
+        <td>${a.nom}</td><td><span class="pill pill-accent">${a.categorie}</span></td><td class="muted">${a.code_barre||'—'}</td>
+        ${state.sites.map(s=>{ const qte=getStock(s.id,a.id); const low=qte<a.seuil_min; return `<td style="${low?'color:var(--danger);font-weight:600':''}">${qte} ${a.unite}</td>`; }).join('')}
+        <td class="muted">${a.seuil_min}</td><td class="muted">${fmt(a.prix_unitaire)}</td>
+        <td><button class="btn btn-sm" data-edit-article="${a.id}">Modifier</button></td>
+      </tr>`).join('') || `<tr><td colspan="${5+state.sites.length}" class="muted">Aucun article trouvé.</td></tr>`}
+    </table></div>
+  </div>
+  <div class="card">
+    <h2>Ajouter un article</h2>
+    ${articleFormHTML('form-article-stock')}
+  </div>`;
+}
+function articleFormHTML(formId, fixedCategorie){
+  return `<form class="inline" id="${formId}">
+    <label>Nom<input type="text" name="nom" placeholder="Ex : Miel brut toutes fleurs" required></label>
+    <label>Catégorie${fixedCategorie?`<input type="hidden" name="categorie" value="${fixedCategorie}"><input type="text" value="${fixedCategorie}" disabled>`:`<select name="categorie"><option value="MP">Miel brut (matière première)</option><option value="PF">Produit fini / dérivé</option><option value="EQUIPEMENT">Équipement</option></select>`}</label>
+    <label>Unité<input type="text" name="unite" placeholder="kg, litre, unité..." value="kg"></label>
+    <label>Prix unitaire<input type="number" name="prixUnitaire" min="0" step="1" value="0"></label>
+    <label>Seuil minimum<input type="number" name="seuilMin" min="0" step="1" value="0"></label>
+    <label>Code-barres<input type="text" name="codeBarre"></label>
+    <button class="btn btn-primary" type="submit">Ajouter</button>
+  </form>`;
+}
+function bindArticleForm(formId, fixedCategorie){
+  const f = document.getElementById(formId);
+  if(!f) return;
+  f.onsubmit = async e=>{
+    e.preventDefault();
+    const fd = new FormData(f);
+    const row = {id:uid('art'), nom:fd.get('nom'), categorie:fixedCategorie||fd.get('categorie'), unite:fd.get('unite')||'kg',
+      prix_unitaire:parseFloat(fd.get('prixUnitaire'))||0, seuil_min:parseFloat(fd.get('seuilMin'))||0, code_barre:fd.get('codeBarre')||'', created_at:nowISO()};
+    state.articles.unshift(row);
+    await dbInsert('articles', row);
+    f.reset(); render();
+  };
+}
+
+/* ============================== ACHATS ============================== */
+function renderAchats(){
+  const list = state.achats;
+  return `
+  <h1>Achats</h1>
+  <p class="muted">Miel brut auprès des apiculteurs, équipement auprès des fournisseurs</p>
+  <div class="card">
+    <h2>Nouvel achat</h2>
+    <form class="inline" id="form-achat">
+      <label>Partenaire<select name="partenaireId">${state.partenaires.map(p=>`<option value="${p.id}">${p.nom} (${p.type==='apiculteur'?'apiculteur':'fournisseur'})</option>`).join('') || '<option value="">Aucun partenaire — créez-en un dans Paramètres</option>'}</select></label>
+      <label>Article<select name="articleId">${state.articles.map(a=>`<option value="${a.id}">${a.nom}</option>`).join('')}</select></label>
+      <label>Site de destination<select name="siteId">${state.sites.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('')}</select></label>
+      <label>Quantité<input type="number" name="quantite" min="0" step="0.01" required></label>
+      <label>Prix unitaire<input type="number" name="prixUnitaire" min="0" step="1" required></label>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Historique des achats</h2>
+    <div class="table-wrap"><table><tr><th>Date</th><th>Partenaire</th><th>Article</th><th>Site</th><th>Quantité</th><th>Montant</th><th>Statut</th><th></th><th></th></tr>
+    ${list.map(c=>`<tr>
+      <td class="muted">${new Date(c.created_at).toLocaleString('fr-FR')}</td>
+      <td>${partenaireName(c.partenaire_id)}</td><td>${articleName(c.article_id)}</td><td>${siteName(c.site_id)}</td>
+      <td>${c.quantite}</td><td>${fmt(c.quantite*c.prix_unitaire)}</td>
+      <td><span class="pill ${c.statut==='recu'?'pill-ok':'pill-warn'}">${c.statut==='recu'?'reçu':'en attente'}</span></td>
+      <td>${c.statut==='en_attente'?`<button class="btn" data-receive-achat="${c.id}">Réceptionner</button>`:''}</td>
+      <td><button class="btn btn-sm" data-edit-achat="${c.id}">Modifier</button></td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">Aucun achat.</td></tr>'}
+    </table></div>
+  </div>
+  <div class="card">
+    <h2>Ajouter un article</h2>
+    ${articleFormHTML('form-article-achats','MP')}
+  </div>`;
+}
+
+/* ============================== PRODUCTION / RECETTES ============================== */
+function renderProduction(){
+  return `
+  <h1>Production</h1>
+  <p class="muted">Transformation du miel brut en produits finis et dérivés</p>
+  <div class="card">
+    <h2>Lancer une production</h2>
+    <form class="inline" id="form-prod">
+      <label>Recette<select name="recetteId">${state.recettes.map(n=>`<option value="${n.id}">${n.nom}</option>`).join('') || '<option value="">Aucune recette — créez-en une ci-dessous</option>'}</select></label>
+      <label>Site<select name="siteId">${state.sites.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('') || '<option value="">Aucun site — créez-en un dans Paramètres</option>'}</select></label>
+      <label>Nombre de fournées<input type="number" name="fois" min="1" step="1" value="1"></label>
+      <label>Perte (%)<input type="number" name="perte" min="0" max="90" step="0.1" value="0"></label>
+      <label>Coût main-d'œuvre (optionnel)<input type="number" name="coutMainOeuvre" min="0" step="1" value="0"></label>
+      <button class="btn btn-primary" type="submit">Lancer</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Historique de production</h2>
+    <div class="table-wrap"><table><tr><th>Date</th><th>Recette</th><th>Site</th><th>Obtenu</th><th>Perte</th><th>Coût total</th><th>Coût / unité</th><th></th></tr>
+    ${state.ordres_production.map(o=>`<tr><td class="muted">${new Date(o.created_at).toLocaleString('fr-FR')}</td><td>${state.recettes.find(n=>n.id===o.recette_id)?.nom||'—'}</td><td>${siteName(o.site_id)}</td><td>${o.quantite_obtenue}</td><td>${o.perte}%</td><td>${fmt(o.cout_revient||0)}</td><td class="muted">${fmt(o.quantite_obtenue>0?(o.cout_revient||0)/o.quantite_obtenue:0)}</td><td><button class="btn btn-sm" data-edit-prod="${o.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="8" class="muted">Aucun ordre.</td></tr>'}
+    </table></div>
+  </div>
+  <div class="card">
+    <h2>Recettes existantes</h2>
+    ${state.recettes.map(n=>{
+      const lignes = state.recette_lignes.filter(l=>l.recette_id===n.id);
+      const coutIngredients = lignes.reduce((s,l)=>s+l.quantite*(articleObj(l.article_id)?.prix_unitaire||0),0);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <h3 style="margin:0">${n.nom} → ${articleName(n.article_produit_id)} (x${n.quantite_produite})</h3>
+        <button class="btn btn-sm btn-danger-outline" data-delete-recette="${n.id}">Supprimer la recette</button>
+      </div>
+      <table><tr><th>Ingrédient</th><th>Quantité</th><th>Coût</th></tr>
+      ${lignes.map(l=>`<tr><td>${articleName(l.article_id)}</td><td>${l.quantite}</td><td class="muted">${fmt(l.quantite*(articleObj(l.article_id)?.prix_unitaire||0))}</td></tr>`).join('')}
+      </table><p class="muted">Coût ingrédients pour ${n.quantite_produite} unité(s) : ${fmt(coutIngredients)} (${fmt(n.quantite_produite>0?coutIngredients/n.quantite_produite:0)} / unité)</p>`;
+    }).join('<hr style="border:none;border-top:1px solid var(--border);margin:14px 0">') || '<p class="muted">Aucune recette créée.</p>'}
+  </div>
+  <div class="card">
+    <h2>Créer une recette</h2>
+    <form id="form-recette">
+      <div class="inline" style="margin-bottom:10px">
+        <label>Nom de la recette<input type="text" name="nom" placeholder="Ex : Conditionnement miel 500g" required></label>
+        <label>Article produit<select name="articleProduitId">${state.articles.filter(a=>a.categorie==='PF').map(a=>`<option value="${a.id}">${a.nom}</option>`).join('') || '<option value="">Aucun article PF — créez-en un</option>'}</select></label>
+        <label>Quantité produite<input type="number" name="quantiteProduite" min="1" step="1" value="1"></label>
+      </div>
+      <div id="recette-ingredients">
+        <div class="inline recette-ligne" style="margin-bottom:6px">
+          <label>Ingrédient<select name="ingredientId">${state.articles.filter(a=>a.categorie==='MP').map(a=>`<option value="${a.id}">${a.nom}</option>`).join('')}</select></label>
+          <label>Quantité<input type="number" name="ingredientQty" min="0" step="0.01" value="1"></label>
+          <button type="button" class="btn btn-sm" data-remove-ligne>Retirer</button>
+        </div>
+      </div>
+      <button type="button" class="btn" id="btn-add-ingredient" style="margin-top:6px">+ Ajouter un ingrédient</button>
+      <button class="btn btn-primary" type="submit" style="margin-top:10px">Créer la recette</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Ajouter un article</h2>
+    ${articleFormHTML('form-article-production')}
+  </div>`;
+}
+
+/* ============================== VENTES ============================== */
+function renderVentes(){
+  const list = state.ventes;
+  return `
+  <h1>Ventes</h1>
+  <p class="muted">Ventes en boutique (saisie interne)</p>
+  <div class="card">
+    <h2>Nouvelle vente</h2>
+    <form class="inline" id="form-vente">
+      <label>Site<select name="siteId">${state.sites.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('')}</select></label>
+      <label>Article<select name="articleId">${state.articles.filter(a=>a.categorie!=='MP').map(a=>`<option value="${a.id}">${a.nom}</option>`).join('')}</select></label>
+      <label>Quantité<input type="number" name="quantite" min="0" step="0.01" required></label>
+      <label>Prix unitaire<input type="number" name="prixUnitaire" min="0" step="1" required></label>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Historique des ventes</h2>
+    <div class="table-wrap"><table><tr><th>Date</th><th>Site</th><th>Article</th><th>Quantité</th><th>Montant</th><th></th></tr>
+    ${list.map(v=>`<tr><td class="muted">${new Date(v.created_at).toLocaleString('fr-FR')}</td><td>${siteName(v.site_id)}</td><td>${articleName(v.article_id)}</td><td>${v.quantite}</td><td>${fmt(v.quantite*v.prix_unitaire)}</td><td><button class="btn btn-sm" data-edit-vente="${v.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Aucune vente.</td></tr>'}
+    </table></div>
+  </div>
+  <div class="card">
+    <h2>Ajouter un article</h2>
+    ${articleFormHTML('form-article-ventes')}
+  </div>`;
+}
+
+/* ============================== FORMATIONS ============================== */
+function renderFormations(){
+  return `
+  <h1>Formations</h1>
+  <p class="muted">Catalogue, sessions programmées et inscriptions</p>
+  <div class="card">
+    <h2>Catalogue de formations</h2>
+    <div class="table-wrap"><table><tr><th>Titre</th><th>Durée</th><th>Prix</th><th></th></tr>
+    ${state.formations.map(f=>`<tr><td>${f.titre}</td><td class="muted">${f.duree||'—'}</td><td>${fmt(f.prix)}</td><td><button class="btn btn-sm" data-edit-formation="${f.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Aucune formation.</td></tr>'}
+    </table></div>
+    <form class="inline" id="form-formation" style="margin-top:12px">
+      <label style="min-width:200px">Titre<input type="text" name="titre" placeholder="Ex : Initiation à l'apiculture" required></label>
+      <label>Description<input type="text" name="description" placeholder="Optionnel"></label>
+      <label>Durée<input type="text" name="duree" placeholder="Ex : 3 jours"></label>
+      <label>Prix<input type="number" name="prix" min="0" step="100" required></label>
+      <button class="btn btn-primary" type="submit">Ajouter la formation</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Sessions programmées</h2>
+    <div class="table-wrap"><table><tr><th>Formation</th><th>Début</th><th>Fin</th><th>Lieu</th><th>Places</th><th>Inscrits</th><th></th></tr>
+    ${state.sessions_formation.map(s=>{
+      const inscrits = state.inscriptions.filter(i=>i.session_id===s.id).length;
+      return `<tr><td>${formationName(s.formation_id)}</td><td>${new Date(s.date_debut).toLocaleDateString('fr-FR')}</td><td>${s.date_fin?new Date(s.date_fin).toLocaleDateString('fr-FR'):'—'}</td><td>${s.lieu||'—'}</td><td>${s.places_total}</td><td class="${inscrits>=s.places_total?'pill pill-warn':''}">${inscrits} / ${s.places_total}</td><td><button class="btn btn-sm" data-edit-session="${s.id}">Modifier</button></td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="muted">Aucune session.</td></tr>'}
+    </table></div>
+    <form class="inline" id="form-session" style="margin-top:12px">
+      <label>Formation<select name="formationId">${state.formations.map(f=>`<option value="${f.id}">${f.titre}</option>`).join('') || '<option value="">Créez d\'abord une formation</option>'}</select></label>
+      <label>Date de début<input type="date" name="dateDebut" required></label>
+      <label>Date de fin<input type="date" name="dateFin"></label>
+      <label>Lieu<input type="text" name="lieu"></label>
+      <label>Places disponibles<input type="number" name="placesTotal" min="1" step="1" value="20"></label>
+      <button class="btn btn-primary" type="submit">Programmer la session</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Inscrire un participant</h2>
+    <form class="inline" id="form-inscription">
+      <label>Session<select name="sessionId">${state.sessions_formation.map(s=>`<option value="${s.id}">${sessionLabel(s.id)}</option>`).join('') || '<option value="">Aucune session</option>'}</select></label>
+      <label>Nom du participant<input type="text" name="nom" required></label>
+      <label>Contact<input type="text" name="contact" required></label>
+      <label>Montant<input type="number" name="montant" min="0" step="100"></label>
+      <label>Statut paiement<select name="statutPaiement"><option value="en_attente">En attente</option><option value="payé">Payé</option></select></label>
+      <button class="btn btn-primary" type="submit">Inscrire</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Liste des inscrits</h2>
+    <div class="table-wrap"><table><tr><th>Session</th><th>Nom</th><th>Contact</th><th>Montant</th><th>Statut</th><th></th></tr>
+    ${state.inscriptions.map(i=>`<tr><td>${sessionLabel(i.session_id)}</td><td>${i.nom}</td><td class="muted">${i.contact}</td><td>${fmt(i.montant)}</td><td><span class="pill ${i.statut_paiement==='payé'?'pill-ok':'pill-warn'}">${i.statut_paiement}</span></td><td><button class="btn btn-sm" data-edit-inscription="${i.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Aucune inscription.</td></tr>'}
+    </table></div>
+  </div>`;
+}
+
+/* ============================== JOURNAL (MOUVEMENTS) ============================== */
+function renderJournal(){
+  const list = state.mouvements;
+  return `
+  <h1>Journal</h1>
+  <p class="muted">Historique complet des mouvements de stock</p>
+  <div class="card">
+    <h2>Ajustement manuel de stock</h2>
+    <form class="inline" id="form-ajustement">
+      <label>Article<select name="articleId">${state.articles.map(a=>`<option value="${a.id}">${a.nom}</option>`).join('')}</select></label>
+      <label>Site<select name="siteId">${state.sites.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('')}</select></label>
+      <label>Sens<select name="type"><option value="entree">Entrée</option><option value="sortie">Sortie</option></select></label>
+      <label>Quantité<input type="number" name="quantite" min="0" step="0.01" required></label>
+      <label>Motif<input type="text" name="motif" placeholder="Ex : casse, inventaire..."></label>
+      <button class="btn btn-primary" type="submit">Enregistrer l'ajustement</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Historique</h2>
+    <div class="table-wrap"><table><tr><th>Date</th><th>Article</th><th>Site</th><th>Catégorie</th><th>Type</th><th>Quantité</th><th>Détail</th><th></th></tr>
+    ${list.map(m=>`<tr>
+      <td class="muted">${new Date(m.created_at).toLocaleString('fr-FR')}</td>
+      <td>${articleName(m.article_id)}</td><td>${siteName(m.site_id)}</td>
+      <td><span class="pill pill-muted">${m.categorie}</span></td>
+      <td><span class="pill ${m.type==='entree'?'pill-ok':'pill-danger'}">${m.type}</span></td>
+      <td>${m.quantite}</td><td class="muted">${m.source||''}</td>
+      <td><button class="btn btn-sm" data-edit-mvt="${m.id}">Modifier</button></td>
+    </tr>`).join('') || '<tr><td colspan="8" class="muted">Aucun mouvement.</td></tr>'}
+    </table></div>
+  </div>`;
+}
+
+/* ============================== TRÉSORERIE ============================== */
+function renderTresorerie(){
+  const ops = state.tresorerie_operations;
+  const totalVentes = state.ventes.reduce((s,v)=>s+v.quantite*v.prix_unitaire,0);
+  const totalInscriptionsPayees = state.inscriptions.filter(i=>i.statut_paiement==='payé').reduce((s,i)=>s+i.montant,0);
+  const totalAchats = state.achats.reduce((s,c)=>s+c.quantite*c.prix_unitaire,0);
+  const encaissements = ops.filter(o=>o.type==='encaissement').reduce((s,o)=>s+o.montant,0)+totalVentes+totalInscriptionsPayees;
+  const decaissements = ops.filter(o=>o.type==='decaissement').reduce((s,o)=>s+o.montant,0)+totalAchats;
+  const solde = (state.meta.solde_initial||0) + encaissements - decaissements;
+  return `
+  <h1>Trésorerie</h1>
+  <div class="grid" style="margin-bottom:16px">
+    <div class="stat"><div class="label">Solde actuel</div><div class="value">${fmt(solde)}</div></div>
+    <div class="stat"><div class="label">Encaissements (ventes + formations + autres)</div><div class="value" style="color:var(--ok)">${fmt(encaissements)}</div></div>
+    <div class="stat"><div class="label">Décaissements (achats + autres)</div><div class="value" style="color:var(--danger)">${fmt(decaissements)}</div></div>
+  </div>
+  <div class="card">
+    <h2>Solde de trésorerie initial</h2>
+    <form class="inline" id="form-solde-initial">
+      <label>Solde initial<input type="number" name="soldeInitial" value="${state.meta.solde_initial||0}" step="100"></label>
+      <button class="btn" type="submit">Mettre à jour</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Nouvelle opération manuelle</h2>
+    <form class="inline" id="form-tresorerie">
+      <label>Site<select name="siteId"><option value="">—</option>${state.sites.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('')}</select></label>
+      <label>Type<select name="type"><option value="encaissement">Encaissement</option><option value="decaissement">Décaissement</option></select></label>
+      <label>Catégorie<input type="text" name="categorie" placeholder="Ex : loyer, salaires..."></label>
+      <label>Montant<input type="number" name="montant" min="0" step="100" required></label>
+      <label>Motif<input type="text" name="motif"></label>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Opérations manuelles</h2>
+    <div class="table-wrap"><table><tr><th>Date</th><th>Site</th><th>Type</th><th>Catégorie</th><th>Montant</th><th>Motif</th></tr>
+    ${ops.map(o=>`<tr><td class="muted">${new Date(o.created_at).toLocaleString('fr-FR')}</td><td>${o.site_id?siteName(o.site_id):'—'}</td><td><span class="pill ${o.type==='encaissement'?'pill-ok':'pill-danger'}">${o.type}</span></td><td class="muted">${o.categorie||'—'}</td><td>${fmt(o.montant)}</td><td class="muted">${o.motif||''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Aucune opération manuelle.</td></tr>'}
+    </table></div>
+  </div>`;
+}
+
+/* ============================== PARAMÈTRES ============================== */
+function renderParametres(){
+  return `
+  <h1>Paramètres</h1>
+  <div class="section card">
+    <h2>Connexion Supabase</h2>
+    <p class="muted">Créez un projet gratuit sur supabase.com, exécutez le script SQL fourni, puis collez l'URL du projet et la clé publique (publishable key) ci-dessous.</p>
+    <form class="inline" id="form-supabase">
+      <label style="min-width:280px">URL du projet<input type="text" name="url" placeholder="https://xxxx.supabase.co" value="${state.supabaseUrl}"></label>
+      <label style="min-width:280px">Clé publique<input type="text" name="key" placeholder="sb_publishable_..." value="${state.supabaseKey}"></label>
+      <button class="btn btn-primary" type="submit">Connecter</button>
+    </form>
+  </div>
+  <div class="section card">
+    <h2>Sites</h2>
+    <table><tr><th>Nom</th><th>Type</th><th></th></tr>${state.sites.map(s=>`<tr><td>${s.nom}</td><td><span class="pill pill-muted">${s.type}</span></td><td><button class="btn btn-sm" data-edit-site="${s.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Aucun site.</td></tr>'}</table>
+    <form class="inline" id="form-site" style="margin-top:10px">
+      <label>Nom<input type="text" name="nom" placeholder="Ex : Boutique Cotonou" required></label>
+      <label>Type<select name="type"><option value="mixte">Mixte</option><option value="vente">Vente</option><option value="production">Production/atelier</option></select></label>
+      <button class="btn btn-primary" type="submit">Ajouter le site</button>
+    </form>
+  </div>
+  <div class="section card">
+    <h2>Apiculteurs &amp; fournisseurs</h2>
+    <table><tr><th>Nom</th><th>Type</th><th>Contact</th><th></th></tr>${state.partenaires.map(p=>`<tr><td>${p.nom}</td><td><span class="pill pill-muted">${p.type==='apiculteur'?'Apiculteur':'Fournisseur équipement'}</span></td><td class="muted">${p.contact||'—'}</td><td><button class="btn btn-sm" data-edit-partenaire="${p.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Aucun partenaire.</td></tr>'}</table>
+    <form class="inline" id="form-partenaire" style="margin-top:10px">
+      <label>Nom<input type="text" name="nom" placeholder="Ex : Coopérative Nord-Bénin" required></label>
+      <label>Type<select name="type"><option value="apiculteur">Apiculteur (livre du miel brut)</option><option value="fournisseur_equipement">Fournisseur d'équipement</option></select></label>
+      <label>Contact<input type="text" name="contact" placeholder="Téléphone / email"></label>
+      <label>Localisation<input type="text" name="localisation"></label>
+      <button class="btn btn-primary" type="submit">Ajouter</button>
+    </form>
+  </div>
+  <div class="section card" style="border:1px solid var(--danger)">
+    <h2 style="color:var(--danger)">Zone dangereuse</h2>
+    <p class="muted">Supprime définitivement tous les achats, ventes, production, formations/inscriptions et mouvements de stock (le stock repart à zéro). Sites, articles, partenaires et recettes sont conservés. Action irréversible.</p>
+    <button class="btn btn-danger-outline" id="btn-reset-ops">Vider toutes les opérations enregistrées</button>
+    <p class="muted" style="margin-top:16px">Supprime absolument tout, y compris articles, sites, partenaires et recettes. L'application repart comme neuve, vide. Action irréversible.</p>
+    <button class="btn btn-danger-outline" id="btn-reset-all" style="background:var(--danger);color:#fff">Tout réinitialiser (usine)</button>
+  </div>`;
+}
+
+/* ============================== NETTOYAGE / RÉINITIALISATION ============================== */
+async function resetAllOperations(){
+  for(const t of ['mouvements','achats','ventes','ordres_production','inscriptions','commande_lignes','commandes_client','paiements','tresorerie_operations','stock']){
+    await dbClearTable(t);
+    state[t] = [];
+  }
+  render();
+}
+async function resetEverything(){
+  const order = ['mouvements','achats','ventes','ordres_production','paiements','inscriptions','commande_lignes',
+    'commandes_client','tresorerie_operations','sessions_formation','recette_lignes','stock','recettes',
+    'formations','articles','sites','partenaires'];
+  for(const t of order){
+    await dbClearTable(t);
+    state[t] = [];
+  }
+  state.meta = {id:'singleton', solde_initial:0};
+  await dbUpsertSingleton('meta', state.meta);
+  render();
+}
+
+/* ============================== RENDU PRINCIPAL ============================== */
+function render(){
+  if(!session){ renderLogin(); return; }
+  const view = ({
+    dashboard:renderDashboard, stock:renderStock, achats:renderAchats, production:renderProduction,
+    ventes:renderVentes, formations:renderFormations, journal:renderJournal, tresorerie:renderTresorerie,
+    parametres:renderParametres
+  })[currentTab] || renderDashboard;
+  document.getElementById('app').innerHTML = `
+  <div class="layout">
+    ${renderSidebar()}
+    <div class="main">
+      <div class="topbar-actions no-print">
+        <span class="pill ${sb?'pill-ok':'pill-warn'}">${sb?'Connecté à Supabase':'Non connecté'}</span>
+        <button class="btn" id="btn-refresh">Actualiser les données</button>
+      </div>
+      ${view()}
+    </div>
+  </div>`;
+  bindHandlers();
+}
+
+/* ============================== MODALS D'ÉDITION ============================== */
+function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+function bindModalClose(){
+  const ov = document.getElementById('modal-overlay');
+  ov.onclick = (e)=>{ if(e.target===ov) closeModal(); };
+  const x = document.getElementById('modal-x'); if(x) x.onclick = closeModal;
+  const c = document.getElementById('modal-cancel'); if(c) c.onclick = closeModal;
+}
+
+function openEditArticle(id){
+  const a = state.articles.find(x=>x.id===id); if(!a) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier l'article <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-article">
+      <label>Nom<input type="text" name="nom" value="${(a.nom||'').replace(/"/g,'&quot;')}" required></label>
+      <label>Catégorie<select name="categorie"><option value="MP" ${a.categorie==='MP'?'selected':''}>Miel brut (matière première)</option><option value="PF" ${a.categorie==='PF'?'selected':''}>Produit fini / dérivé</option><option value="EQUIPEMENT" ${a.categorie==='EQUIPEMENT'?'selected':''}>Équipement</option></select></label>
+      <label>Unité<input type="text" name="unite" value="${a.unite||''}"></label>
+      <label>Prix unitaire<input type="number" name="prixUnitaire" min="0" step="1" value="${a.prix_unitaire||0}"></label>
+      <label>Seuil minimum<input type="number" name="seuilMin" min="0" step="1" value="${a.seuil_min||0}"></label>
+      <label>Code-barres<input type="text" name="codeBarre" value="${a.code_barre||''}"></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
+        <button type="button" class="btn" id="modal-cancel">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-article').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    Object.assign(a, {nom:f.get('nom'), categorie:f.get('categorie'), unite:f.get('unite'), prix_unitaire:parseFloat(f.get('prixUnitaire'))||0, seuil_min:parseFloat(f.get('seuilMin'))||0, code_barre:f.get('codeBarre')||''});
+    await dbUpdate('articles', id, {nom:a.nom, categorie:a.categorie, unite:a.unite, prix_unitaire:a.prix_unitaire, seuil_min:a.seuil_min, code_barre:a.code_barre});
+    closeModal(); render();
+  };
+  document.getElementById('modal-delete').onclick = async ()=>{
+    const refs = [];
+    if(state.achats.some(c=>c.article_id===id)) refs.push('des achats');
+    if(state.ventes.some(v=>v.article_id===id)) refs.push('des ventes');
+    if(state.mouvements.some(m=>m.article_id===id)) refs.push('des mouvements');
+    if(state.recette_lignes.some(l=>l.article_id===id)) refs.push('des ingrédients de recette');
+    if(state.recettes.some(n=>n.article_produit_id===id)) refs.push('une recette');
+    if(state.stock.some(s=>s.article_id===id && s.quantite!==0)) refs.push('un stock non nul');
+    if(refs.length){ alert("Impossible de supprimer : utilisé dans "+refs.join(', ')+". Videz d'abord le stock et les opérations liées."); return; }
+    if(!confirm('Supprimer définitivement l\'article "'+a.nom+'" ?')) return;
+    for(const s of state.stock.filter(x=>x.article_id===id)){ state.stock=state.stock.filter(x=>x.id!==s.id); await dbDelete('stock', s.id); }
+    state.articles = state.articles.filter(x=>x.id!==id);
+    await dbDelete('articles', id);
+    closeModal(); render();
+  };
+}
+
+function openEditSite(id){
+  const s = state.sites.find(x=>x.id===id); if(!s) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier le site <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-site">
+      <label>Nom<input type="text" name="nom" value="${(s.nom||'').replace(/"/g,'&quot;')}" required></label>
+      <label>Type<select name="type"><option value="vente" ${s.type==='vente'?'selected':''}>Vente</option><option value="production" ${s.type==='production'?'selected':''}>Production/atelier</option><option value="mixte" ${s.type==='mixte'?'selected':''}>Mixte</option></select></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
+        <button type="button" class="btn" id="modal-cancel">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-site').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    Object.assign(s, {nom:f.get('nom'), type:f.get('type')});
+    await dbUpdate('sites', id, {nom:s.nom, type:s.type});
+    closeModal(); render();
+  };
+  document.getElementById('modal-delete').onclick = async ()=>{
+    const refs = [];
+    if(state.achats.some(c=>c.site_id===id)) refs.push('des achats');
+    if(state.ventes.some(v=>v.site_id===id)) refs.push('des ventes');
+    if(state.mouvements.some(m=>m.site_id===id)) refs.push('des mouvements');
+    if(state.ordres_production.some(o=>o.site_id===id)) refs.push('des productions');
+    if(state.stock.some(x=>x.site_id===id && x.quantite!==0)) refs.push('un stock non nul');
+    if(refs.length){ alert("Impossible de supprimer : utilisé dans "+refs.join(', ')+"."); return; }
+    if(!confirm('Supprimer définitivement le site "'+s.nom+'" ?')) return;
+    for(const st of state.stock.filter(x=>x.site_id===id)){ state.stock=state.stock.filter(x=>x.id!==st.id); await dbDelete('stock', st.id); }
+    state.sites = state.sites.filter(x=>x.id!==id);
+    await dbDelete('sites', id);
+    closeModal(); render();
+  };
+}
+
+function openEditPartenaire(id){
+  const p = state.partenaires.find(x=>x.id===id); if(!p) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier le partenaire <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-partenaire">
+      <label>Nom<input type="text" name="nom" value="${(p.nom||'').replace(/"/g,'&quot;')}" required></label>
+      <label>Type<select name="type"><option value="apiculteur" ${p.type==='apiculteur'?'selected':''}>Apiculteur</option><option value="fournisseur_equipement" ${p.type==='fournisseur_equipement'?'selected':''}>Fournisseur d'équipement</option></select></label>
+      <label>Contact<input type="text" name="contact" value="${(p.contact||'').replace(/"/g,'&quot;')}"></label>
+      <label>Localisation<input type="text" name="localisation" value="${(p.localisation||'').replace(/"/g,'&quot;')}"></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
+        <button type="button" class="btn" id="modal-cancel">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-partenaire').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    Object.assign(p, {nom:f.get('nom'), type:f.get('type'), contact:f.get('contact'), localisation:f.get('localisation')});
+    await dbUpdate('partenaires', id, {nom:p.nom, type:p.type, contact:p.contact, localisation:p.localisation});
+    closeModal(); render();
+  };
+  document.getElementById('modal-delete').onclick = async ()=>{
+    if(state.achats.some(c=>c.partenaire_id===id)){ alert("Impossible de supprimer : lié à des achats enregistrés."); return; }
+    if(!confirm('Supprimer définitivement "'+p.nom+'" ?')) return;
+    state.partenaires = state.partenaires.filter(x=>x.id!==id);
+    await dbDelete('partenaires', id);
+    closeModal(); render();
+  };
+}
+
+function openEditAchat(id){
+  const c = state.achats.find(x=>x.id===id); if(!c) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier l'achat <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-achat">
+      <label>Partenaire<select name="partenaireId">${state.partenaires.map(p=>`<option value="${p.id}" ${p.id===c.partenaire_id?'selected':''}>${p.nom}</option>`).join('')}</select></label>
+      <label>Article<select name="articleId">${state.articles.map(a=>`<option value="${a.id}" ${a.id===c.article_id?'selected':''}>${a.nom}</option>`).join('')}</select></label>
+      <label>Site<select name="siteId">${state.sites.map(s=>`<option value="${s.id}" ${s.id===c.site_id?'selected':''}>${s.nom}</option>`).join('')}</select></label>
+      <label>Quantité<input type="number" name="quantite" min="0" step="0.01" value="${c.quantite}"></label>
+      <label>Prix unitaire<input type="number" name="prixUnitaire" min="0" step="1" value="${c.prix_unitaire}"></label>
+      <label>Statut<select name="statut"><option value="en_attente" ${c.statut==='en_attente'?'selected':''}>En attente</option><option value="recu" ${c.statut==='recu'?'selected':''}>Reçu</option></select></label>
+      <div class="modal-actions"><button type="button" class="btn" id="modal-cancel">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-achat').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const wasRecu = c.statut === 'recu';
+    const oldArt=c.article_id, oldSite=c.site_id, oldQty=c.quantite;
+    const newArt=f.get('articleId'), newSite=f.get('siteId'), newQty=parseFloat(f.get('quantite'))||0, newPrix=parseFloat(f.get('prixUnitaire'))||0, newStatut=f.get('statut');
+    if(wasRecu) await stockDelta(oldArt, oldSite, -oldQty, 'Correction', 'Annulation ancien achat (modification)');
+    if(newStatut==='recu') await stockDelta(newArt, newSite, +newQty, 'Correction', 'Achat corrigé');
+    Object.assign(c, {partenaire_id:f.get('partenaireId'), article_id:newArt, site_id:newSite, quantite:newQty, prix_unitaire:newPrix, statut:newStatut});
+    await dbUpdate('achats', id, {partenaire_id:c.partenaire_id, article_id:newArt, site_id:newSite, quantite:newQty, prix_unitaire:newPrix, statut:newStatut});
+    closeModal(); render();
+  };
+}
+
+function openEditVente(id){
+  const v = state.ventes.find(x=>x.id===id); if(!v) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier la vente <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-vente">
+      <label>Site<select name="siteId">${state.sites.map(s=>`<option value="${s.id}" ${s.id===v.site_id?'selected':''}>${s.nom}</option>`).join('')}</select></label>
+      <label>Article<select name="articleId">${state.articles.filter(a=>a.categorie!=='MP').map(a=>`<option value="${a.id}" ${a.id===v.article_id?'selected':''}>${a.nom}</option>`).join('')}</select></label>
+      <label>Quantité<input type="number" name="quantite" min="0" step="0.01" value="${v.quantite}"></label>
+      <label>Prix unitaire<input type="number" name="prixUnitaire" min="0" step="1" value="${v.prix_unitaire}"></label>
+      <div class="modal-actions"><button type="button" class="btn" id="modal-cancel">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-vente').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const oldArt=v.article_id, oldSite=v.site_id, oldQty=v.quantite;
+    const newArt=f.get('articleId'), newSite=f.get('siteId'), newQty=parseFloat(f.get('quantite'))||0, newPrix=parseFloat(f.get('prixUnitaire'))||0;
+    await stockDelta(oldArt, oldSite, +oldQty, 'Correction', 'Annulation ancienne vente (modification)');
+    if(getStock(newSite, newArt) < newQty){
+      alert('Stock insuffisant (disponible : '+getStock(newSite,newArt)+').');
+      await stockDelta(oldArt, oldSite, -oldQty, 'Correction', "Annulation de la modification (échec)");
+      return;
+    }
+    await stockDelta(newArt, newSite, -newQty, 'Correction', 'Vente corrigée');
+    Object.assign(v, {site_id:newSite, article_id:newArt, quantite:newQty, prix_unitaire:newPrix});
+    await dbUpdate('ventes', id, {site_id:newSite, article_id:newArt, quantite:newQty, prix_unitaire:newPrix});
+    closeModal(); render();
+  };
+}
+
+function openEditProd(id){
+  const o = state.ordres_production.find(x=>x.id===id); if(!o) return;
+  const rec = state.recettes.find(n=>n.id===o.recette_id);
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier l'ordre de production <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-prod">
+      <p class="muted">Recette : <strong>${rec?rec.nom:'—'}</strong> (non modifiable).</p>
+      <label>Site<select name="siteId">${state.sites.map(s=>`<option value="${s.id}" ${s.id===o.site_id?'selected':''}>${s.nom}</option>`).join('')}</select></label>
+      <label>Quantité obtenue<input type="number" name="quantiteObtenue" min="0" step="1" value="${o.quantite_obtenue}"></label>
+      <label>Perte (%)<input type="number" name="perte" min="0" max="90" step="0.1" value="${o.perte}"></label>
+      <label>Coût de revient total<input type="number" name="coutRevient" min="0" step="1" value="${o.cout_revient||0}"></label>
+      <p class="muted">Seul le stock du produit fini obtenu est recalculé automatiquement. Utilisez "Ajustement manuel" (Journal) pour corriger un ingrédient.</p>
+      <div class="modal-actions"><button type="button" class="btn" id="modal-cancel">Annuler</button><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-prod').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const newSite=f.get('siteId'), newObtenu=parseFloat(f.get('quantiteObtenue'))||0, newPerte=parseFloat(f.get('perte'))||0, newCout=parseFloat(f.get('coutRevient'))||0;
+    if(!rec){ alert('Recette introuvable.'); closeModal(); return; }
+    const oldSite=o.site_id, oldObtenu=o.quantite_obtenue, artProduit=rec.article_produit_id;
+    await stockDelta(artProduit, oldSite, -oldObtenu, 'Correction', 'Annulation ancienne production (modification)');
+    await stockDelta(artProduit, newSite, +newObtenu, 'Correction', 'Production corrigée');
+    Object.assign(o, {site_id:newSite, quantite_obtenue:newObtenu, perte:newPerte, cout_revient:newCout});
+    await dbUpdate('ordres_production', id, {site_id:newSite, quantite_obtenue:newObtenu, perte:newPerte, cout_revient:newCout});
+    closeModal(); render();
+  };
+}
+
+function openEditMvt(id){
+  const m = state.mouvements.find(x=>x.id===id); if(!m) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier le mouvement <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-mvt">
+      <label>Article<select name="articleId">${state.articles.map(a=>`<option value="${a.id}" ${a.id===m.article_id?'selected':''}>${a.nom}</option>`).join('')}</select></label>
+      <label>Site<select name="siteId">${state.sites.map(s=>`<option value="${s.id}" ${s.id===m.site_id?'selected':''}>${s.nom}</option>`).join('')}</select></label>
+      <label>Sens<select name="type"><option value="entree" ${m.type==='entree'?'selected':''}>Entrée</option><option value="sortie" ${m.type==='sortie'?'selected':''}>Sortie</option></select></label>
+      <label>Quantité<input type="number" name="quantite" min="0" step="0.01" value="${m.quantite}"></label>
+      <label>Détail / motif<input type="text" name="source" value="${(m.source||'').replace(/"/g,'&quot;')}"></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
+        <button type="button" class="btn" id="modal-cancel">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-mvt').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const oldEffect = m.type==='entree' ? m.quantite : -m.quantite;
+    const newArt=f.get('articleId'), newSite=f.get('siteId'), newType=f.get('type'), newQty=parseFloat(f.get('quantite'))||0, newSource=f.get('source')||'';
+    const newEffect = newType==='entree' ? newQty : -newQty;
+    await setStock(m.site_id, m.article_id, getStock(m.site_id, m.article_id) - oldEffect);
+    const projected = getStock(newSite, newArt) + newEffect;
+    if(projected < 0){
+      alert('Cette modification ferait passer le stock sous zéro.');
+      await setStock(m.site_id, m.article_id, getStock(m.site_id, m.article_id) + oldEffect);
+      return;
+    }
+    await setStock(newSite, newArt, projected);
+    Object.assign(m, {article_id:newArt, site_id:newSite, type:newType, quantite:newQty, source:newSource});
+    await dbUpdate('mouvements', id, {article_id:newArt, site_id:newSite, type:newType, quantite:newQty, source:newSource});
+    closeModal(); render();
+  };
+  document.getElementById('modal-delete').onclick = async ()=>{
+    if(!confirm('Supprimer définitivement ce mouvement ?')) return;
+    await setStock(m.site_id, m.article_id, getStock(m.site_id, m.article_id) - oldEffect);
+    state.mouvements = state.mouvements.filter(x=>x.id!==id);
+    await dbDelete('mouvements', id);
+    closeModal(); render();
+  };
+}
+
+function openEditFormation(id){
+  const f0 = state.formations.find(x=>x.id===id); if(!f0) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier la formation <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-formation">
+      <label>Titre<input type="text" name="titre" value="${(f0.titre||'').replace(/"/g,'&quot;')}" required></label>
+      <label>Description<input type="text" name="description" value="${(f0.description||'').replace(/"/g,'&quot;')}"></label>
+      <label>Durée<input type="text" name="duree" value="${(f0.duree||'').replace(/"/g,'&quot;')}"></label>
+      <label>Prix<input type="number" name="prix" min="0" step="100" value="${f0.prix}"></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
+        <button type="button" class="btn" id="modal-cancel">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-formation').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    Object.assign(f0, {titre:f.get('titre'), description:f.get('description'), duree:f.get('duree'), prix:parseFloat(f.get('prix'))||0});
+    await dbUpdate('formations', id, {titre:f0.titre, description:f0.description, duree:f0.duree, prix:f0.prix});
+    closeModal(); render();
+  };
+  document.getElementById('modal-delete').onclick = async ()=>{
+    if(state.sessions_formation.some(s=>s.formation_id===id)){ alert("Impossible de supprimer : des sessions existent pour cette formation."); return; }
+    if(!confirm('Supprimer "'+f0.titre+'" ?')) return;
+    state.formations = state.formations.filter(x=>x.id!==id);
+    await dbDelete('formations', id);
+    closeModal(); render();
+  };
+}
+
+function openEditSession(id){
+  const s = state.sessions_formation.find(x=>x.id===id); if(!s) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier la session <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-session">
+      <label>Formation<select name="formationId">${state.formations.map(f=>`<option value="${f.id}" ${f.id===s.formation_id?'selected':''}>${f.titre}</option>`).join('')}</select></label>
+      <label>Date de début<input type="date" name="dateDebut" value="${localDateStr(s.date_debut)}" required></label>
+      <label>Date de fin<input type="date" name="dateFin" value="${s.date_fin?localDateStr(s.date_fin):''}"></label>
+      <label>Lieu<input type="text" name="lieu" value="${(s.lieu||'').replace(/"/g,'&quot;')}"></label>
+      <label>Places disponibles<input type="number" name="placesTotal" min="1" step="1" value="${s.places_total}"></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
+        <button type="button" class="btn" id="modal-cancel">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-session').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    Object.assign(s, {formation_id:f.get('formationId'), date_debut:f.get('dateDebut'), date_fin:f.get('dateFin')||null, lieu:f.get('lieu'), places_total:parseInt(f.get('placesTotal'))||1});
+    await dbUpdate('sessions_formation', id, {formation_id:s.formation_id, date_debut:s.date_debut, date_fin:s.date_fin, lieu:s.lieu, places_total:s.places_total});
+    closeModal(); render();
+  };
+  document.getElementById('modal-delete').onclick = async ()=>{
+    if(state.inscriptions.some(i=>i.session_id===id)){ alert("Impossible de supprimer : des inscriptions existent pour cette session."); return; }
+    if(!confirm('Supprimer cette session ?')) return;
+    state.sessions_formation = state.sessions_formation.filter(x=>x.id!==id);
+    await dbDelete('sessions_formation', id);
+    closeModal(); render();
+  };
+}
+
+function openEditInscription(id){
+  const i = state.inscriptions.find(x=>x.id===id); if(!i) return;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-panel">
+    <h2>Modifier l'inscription <button class="modal-close" id="modal-x">×</button></h2>
+    <form id="form-edit-inscription">
+      <label>Session<select name="sessionId">${state.sessions_formation.map(s=>`<option value="${s.id}" ${s.id===i.session_id?'selected':''}>${sessionLabel(s.id)}</option>`).join('')}</select></label>
+      <label>Nom<input type="text" name="nom" value="${(i.nom||'').replace(/"/g,'&quot;')}" required></label>
+      <label>Contact<input type="text" name="contact" value="${(i.contact||'').replace(/"/g,'&quot;')}" required></label>
+      <label>Montant<input type="number" name="montant" min="0" step="100" value="${i.montant}"></label>
+      <label>Statut paiement<select name="statutPaiement"><option value="en_attente" ${i.statut_paiement==='en_attente'?'selected':''}>En attente</option><option value="payé" ${i.statut_paiement==='payé'?'selected':''}>Payé</option><option value="annulé" ${i.statut_paiement==='annulé'?'selected':''}>Annulé</option></select></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
+        <button type="button" class="btn" id="modal-cancel">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div></div>`;
+  bindModalClose();
+  document.getElementById('form-edit-inscription').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    Object.assign(i, {session_id:f.get('sessionId'), nom:f.get('nom'), contact:f.get('contact'), montant:parseFloat(f.get('montant'))||0, statut_paiement:f.get('statutPaiement')});
+    await dbUpdate('inscriptions', id, {session_id:i.session_id, nom:i.nom, contact:i.contact, montant:i.montant, statut_paiement:i.statut_paiement});
+    closeModal(); render();
+  };
+  document.getElementById('modal-delete').onclick = async ()=>{
+    if(!confirm('Supprimer cette inscription ?')) return;
+    state.inscriptions = state.inscriptions.filter(x=>x.id!==id);
+    await dbDelete('inscriptions', id);
+    closeModal(); render();
+  };
+}
+
+async function deleteRecette(id){
+  const n = state.recettes.find(x=>x.id===id); if(!n) return;
+  const usedInProd = state.ordres_production.filter(o=>o.recette_id===id).length;
+  if(usedInProd){
+    if(!confirm('Cette recette a été utilisée dans '+usedInProd+' ordre(s) de production. L\'historique restera mais sans nom de recette. Continuer ?')) return;
+  } else {
+    if(!confirm('Supprimer définitivement la recette "'+n.nom+'" ?')) return;
+  }
+  for(const l of state.recette_lignes.filter(x=>x.recette_id===id)){
+    state.recette_lignes = state.recette_lignes.filter(x=>x.id!==l.id);
+    await dbDelete('recette_lignes', l.id);
+  }
+  state.recettes = state.recettes.filter(x=>x.id!==id);
+  await dbDelete('recettes', id);
+  render();
+}
+
+/* ============================== HANDLERS ============================== */
+function bindHandlers(){
+  document.querySelectorAll('[data-tab]').forEach(btn=>btn.onclick=()=>{ currentTab = btn.dataset.tab; render(); });
+  const btnSignout = document.getElementById('btn-signout');
+  if(btnSignout) btnSignout.onclick = async ()=>{ if(sb) await sb.auth.signOut(); session=null; render(); };
+  const btnRefresh = document.getElementById('btn-refresh');
+  if(btnRefresh) btnRefresh.onclick = async ()=>{ await refreshAll(); render(); };
+
+  ['form-article-stock','form-article-achats','form-article-ventes','form-article-production'].forEach(id=>bindArticleForm(id, id==='form-article-achats'?'MP':null));
+
+  document.querySelectorAll('[data-edit-article]').forEach(btn=>btn.onclick=()=>openEditArticle(btn.dataset.editArticle));
+  document.querySelectorAll('[data-edit-site]').forEach(btn=>btn.onclick=()=>openEditSite(btn.dataset.editSite));
+  document.querySelectorAll('[data-edit-partenaire]').forEach(btn=>btn.onclick=()=>openEditPartenaire(btn.dataset.editPartenaire));
+  document.querySelectorAll('[data-edit-achat]').forEach(btn=>btn.onclick=()=>openEditAchat(btn.dataset.editAchat));
+  document.querySelectorAll('[data-edit-vente]').forEach(btn=>btn.onclick=()=>openEditVente(btn.dataset.editVente));
+  document.querySelectorAll('[data-edit-prod]').forEach(btn=>btn.onclick=()=>openEditProd(btn.dataset.editProd));
+  document.querySelectorAll('[data-edit-mvt]').forEach(btn=>btn.onclick=()=>openEditMvt(btn.dataset.editMvt));
+  document.querySelectorAll('[data-edit-formation]').forEach(btn=>btn.onclick=()=>openEditFormation(btn.dataset.editFormation));
+  document.querySelectorAll('[data-edit-session]').forEach(btn=>btn.onclick=()=>openEditSession(btn.dataset.editSession));
+  document.querySelectorAll('[data-edit-inscription]').forEach(btn=>btn.onclick=()=>openEditInscription(btn.dataset.editInscription));
+  document.querySelectorAll('[data-delete-recette]').forEach(btn=>btn.onclick=()=>deleteRecette(btn.dataset.deleteRecette));
+
+  document.querySelectorAll('[data-receive-achat]').forEach(btn=>btn.onclick=async ()=>{
+    const c = state.achats.find(x=>x.id===btn.dataset.receiveAchat); if(!c) return;
+    c.statut = 'recu';
+    await dbUpdate('achats', c.id, {statut:'recu'});
+    await stockDelta(c.article_id, c.site_id, c.quantite, 'Achat', 'Achat auprès de '+partenaireName(c.partenaire_id));
+    render();
+  });
+
+  const fSearch = document.getElementById('form-stock-search');
+  if(fSearch) fSearch.onsubmit = e=>{ e.preventDefault(); window.__stockFilter = new FormData(fSearch).get('q'); render(); };
+
+  const fSupa = document.getElementById('form-supabase');
+  if(fSupa) fSupa.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fSupa);
+    state.supabaseUrl = (f.get('url')||'').trim();
+    state.supabaseKey = (f.get('key')||'').trim();
+    localStorage.setItem('apiservice_sb_url', state.supabaseUrl);
+    localStorage.setItem('apiservice_sb_key', state.supabaseKey);
+    initSupabase();
+    await handleAuthChange();
+  };
+
+  const fSite = document.getElementById('form-site');
+  if(fSite) fSite.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fSite);
+    const row = {id:uid('site'), nom:f.get('nom'), type:f.get('type'), created_at:nowISO()};
+    state.sites.unshift(row); await dbInsert('sites', row); fSite.reset(); render();
+  };
+  const fPart = document.getElementById('form-partenaire');
+  if(fPart) fPart.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fPart);
+    const row = {id:uid('part'), nom:f.get('nom'), type:f.get('type'), contact:f.get('contact')||'', localisation:f.get('localisation')||'', created_at:nowISO()};
+    state.partenaires.unshift(row); await dbInsert('partenaires', row); fPart.reset(); render();
+  };
+
+  const fAchat = document.getElementById('form-achat');
+  if(fAchat) fAchat.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fAchat);
+    const row = {id:uid('ach'), partenaire_id:f.get('partenaireId'), article_id:f.get('articleId'), site_id:f.get('siteId'),
+      quantite:parseFloat(f.get('quantite'))||0, prix_unitaire:parseFloat(f.get('prixUnitaire'))||0, statut:'en_attente', created_at:nowISO()};
+    state.achats.unshift(row); await dbInsert('achats', row); fAchat.reset(); render();
+  };
+
+  const fVente = document.getElementById('form-vente');
+  if(fVente) fVente.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fVente);
+    const siteId=f.get('siteId'), articleId=f.get('articleId'), quantite=parseFloat(f.get('quantite'))||0, prixUnitaire=parseFloat(f.get('prixUnitaire'))||0;
+    if(getStock(siteId, articleId) < quantite){ alert('Stock insuffisant (disponible : '+getStock(siteId,articleId)+').'); return; }
+    const row = {id:uid('vt'), site_id:siteId, article_id:articleId, quantite, prix_unitaire:prixUnitaire, created_at:nowISO()};
+    state.ventes.unshift(row); await dbInsert('ventes', row);
+    await stockDelta(articleId, siteId, -quantite, 'Vente', 'Vente boutique');
+    fVente.reset(); render();
+  };
+
+  // Recette : ajout/retrait de lignes d'ingrédients
+  const btnAddIng = document.getElementById('btn-add-ingredient');
+  if(btnAddIng) btnAddIng.onclick = ()=>{
+    const wrap = document.getElementById('recette-ingredients');
+    const div = document.createElement('div');
+    div.className = 'inline recette-ligne';
+    div.style.marginBottom = '6px';
+    div.innerHTML = `<label>Ingrédient<select name="ingredientId">${state.articles.filter(a=>a.categorie==='MP').map(a=>`<option value="${a.id}">${a.nom}</option>`).join('')}</select></label>
+      <label>Quantité<input type="number" name="ingredientQty" min="0" step="0.01" value="1"></label>
+      <button type="button" class="btn btn-sm" data-remove-ligne>Retirer</button>`;
+    wrap.appendChild(div);
+    div.querySelector('[data-remove-ligne]').onclick = ()=>div.remove();
+  };
+  document.querySelectorAll('[data-remove-ligne]').forEach(btn=>btn.onclick=()=>btn.closest('.recette-ligne').remove());
+
+  const fRecette = document.getElementById('form-recette');
+  if(fRecette) fRecette.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fRecette);
+    const nom = f.get('nom'), articleProduitId = f.get('articleProduitId'), quantiteProduite = parseFloat(f.get('quantiteProduite'))||1;
+    if(!articleProduitId){ alert("Créez d'abord un article de type Produit fini / dérivé."); return; }
+    const ingredientIds = f.getAll('ingredientId'), ingredientQtys = f.getAll('ingredientQty');
+    if(!ingredientIds.length){ alert('Ajoutez au moins un ingrédient.'); return; }
+    const recetteId = uid('rec');
+    const rec = {id:recetteId, nom, article_produit_id:articleProduitId, quantite_produite:quantiteProduite, created_at:nowISO()};
+    state.recettes.unshift(rec); await dbInsert('recettes', rec);
+    for(let i=0;i<ingredientIds.length;i++){
+      const ligne = {id:uid('recl'), recette_id:recetteId, article_id:ingredientIds[i], quantite:parseFloat(ingredientQtys[i])||0};
+      state.recette_lignes.push(ligne); await dbInsert('recette_lignes', ligne);
+    }
+    fRecette.reset(); render();
+  };
+
+  const fp = document.getElementById('form-prod');
+  if(fp) fp.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fp);
+    const recette = state.recettes.find(n=>n.id===f.get('recetteId'));
+    if(!recette){ alert('Créez une recette avant de lancer une production.'); return; }
+    const siteId = f.get('siteId'), fois = parseInt(f.get('fois'))||1, perte = parseFloat(f.get('perte'))||0;
+    if(!siteId){ alert("Aucun site sélectionné. Créez d'abord un site dans Paramètres."); return; }
+    const coutMainOeuvre = parseFloat(f.get('coutMainOeuvre'))||0;
+    const lignes = state.recette_lignes.filter(l=>l.recette_id===recette.id);
+    for(const l of lignes){
+      const dispo = getStock(siteId, l.article_id);
+      const besoin = l.quantite*fois;
+      if(dispo < besoin){
+        const art = articleObj(l.article_id);
+        alert('Stock insuffisant en '+articleName(l.article_id)+' sur le site "'+siteName(siteId)+'".\n\nBesoin : '+besoin+' '+(art?.unite||'')+'\nDisponible : '+dispo+' '+(art?.unite||''));
+        return;
+      }
+    }
+    let coutIngredients = 0;
+    for(const l of lignes){
+      const besoin = l.quantite*fois;
+      await stockDelta(l.article_id, siteId, -besoin, 'Production', 'Consommé pour '+recette.nom);
+      coutIngredients += besoin*(articleObj(l.article_id)?.prix_unitaire||0);
+    }
+    const quantiteObtenue = Math.round(recette.quantite_produite*fois*(1-perte/100)*100)/100;
+    await stockDelta(recette.article_produit_id, siteId, quantiteObtenue, 'Production', 'Production : '+recette.nom);
+    const cout_revient = coutIngredients + coutMainOeuvre;
+    const row = {id:uid('op'), recette_id:recette.id, site_id:siteId, quantite_obtenue:quantiteObtenue, perte, cout_revient, created_at:nowISO()};
+    state.ordres_production.unshift(row); await dbInsert('ordres_production', row);
+    fp.reset(); render();
+  };
+
+  const fForm = document.getElementById('form-formation');
+  if(fForm) fForm.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fForm);
+    const row = {id:uid('form'), titre:f.get('titre'), description:f.get('description')||'', duree:f.get('duree')||'', prix:parseFloat(f.get('prix'))||0, created_at:nowISO()};
+    state.formations.unshift(row); await dbInsert('formations', row); fForm.reset(); render();
+  };
+  const fSession = document.getElementById('form-session');
+  if(fSession) fSession.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fSession);
+    const row = {id:uid('sess'), formation_id:f.get('formationId'), date_debut:f.get('dateDebut'), date_fin:f.get('dateFin')||null, lieu:f.get('lieu')||'', places_total:parseInt(f.get('placesTotal'))||20, created_at:nowISO()};
+    state.sessions_formation.unshift(row); await dbInsert('sessions_formation', row); fSession.reset(); render();
+  };
+  const fInsc = document.getElementById('form-inscription');
+  if(fInsc) fInsc.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fInsc);
+    const sessionId = f.get('sessionId');
+    const s = state.sessions_formation.find(x=>x.id===sessionId);
+    if(s){
+      const inscrits = state.inscriptions.filter(i=>i.session_id===sessionId).length;
+      if(inscrits >= s.places_total){ alert('Cette session est complète ('+s.places_total+' places).'); return; }
+    }
+    const row = {id:uid('insc'), session_id:sessionId, nom:f.get('nom'), contact:f.get('contact'), montant:parseFloat(f.get('montant'))||0, statut_paiement:f.get('statutPaiement'), created_at:nowISO()};
+    state.inscriptions.unshift(row); await dbInsert('inscriptions', row); fInsc.reset(); render();
+  };
+
+  const fajust = document.getElementById('form-ajustement');
+  if(fajust) fajust.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fajust);
+    const articleId=f.get('articleId'), siteId=f.get('siteId'), type=f.get('type'), qty=parseFloat(f.get('quantite'))||0, motif=f.get('motif');
+    const cur = getStock(siteId, articleId);
+    if(type==='sortie' && cur<qty){ alert('Stock insuffisant.'); return; }
+    await setStock(siteId, articleId, type==='entree'? cur+qty : cur-qty);
+    await addMouvement(articleId, siteId, type, 'Ajustement', qty, motif||'');
+    render();
+  };
+
+  const fSoldeInit = document.getElementById('form-solde-initial');
+  if(fSoldeInit) fSoldeInit.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fSoldeInit);
+    state.meta.solde_initial = parseFloat(f.get('soldeInitial'))||0;
+    await dbUpsertSingleton('meta', state.meta);
+    render();
+  };
+  const fTreso = document.getElementById('form-tresorerie');
+  if(fTreso) fTreso.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fTreso);
+    const row = {id:uid('trez'), site_id:f.get('siteId')||null, type:f.get('type'), categorie:f.get('categorie')||'', montant:parseFloat(f.get('montant'))||0, motif:f.get('motif')||'', created_at:nowISO()};
+    state.tresorerie_operations.unshift(row); await dbInsert('tresorerie_operations', row); fTreso.reset(); render();
+  };
+
+  const btnReset = document.getElementById('btn-reset-ops');
+  if(btnReset) btnReset.onclick = async ()=>{
+    const saisie = prompt('Pour confirmer la suppression DÉFINITIVE de toutes les opérations, tapez EXACTEMENT : SUPPRIMER');
+    if(saisie !== 'SUPPRIMER'){ if(saisie!==null) alert('Annulé.'); return; }
+    btnReset.disabled = true; btnReset.textContent = 'Suppression en cours…';
+    await resetAllOperations();
+  };
+  const btnResetAll = document.getElementById('btn-reset-all');
+  if(btnResetAll) btnResetAll.onclick = async ()=>{
+    const saisie = prompt('Pour confirmer la RÉINITIALISATION TOTALE, tapez EXACTEMENT : REINITIALISER');
+    if(saisie !== 'REINITIALISER'){ if(saisie!==null) alert('Annulé.'); return; }
+    btnResetAll.disabled = true; btnResetAll.textContent = 'Réinitialisation en cours…';
+    await resetEverything();
+  };
+}
+
+/* ============================== INIT ============================== */
+(async function init(){
+  try{
+    initSupabase();
+    if(sb){ await handleAuthChange(); } else { render(); }
+  }catch(err){
+    document.getElementById('app').innerHTML = '<pre style="padding:20px;color:red">Erreur au démarrage : '+(err?.message||err)+'</pre>';
+  }
+})();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
