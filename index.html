@@ -209,6 +209,32 @@ async function handleAuthChange(){
 
 /* ============================== RENDU : LOGIN ============================== */
 let loginMode = 'signin';
+function renderSetup(){
+  document.getElementById('app').innerHTML = `
+  <div id="login-screen">
+    <div class="login-card" style="width:420px">
+      <h1>APISERVICE MONDE</h1>
+      <p class="muted">Première configuration</p>
+      <p class="muted" style="margin-top:10px">Avant de vous connecter, branchez l'application à votre projet Supabase. Créez un projet gratuit sur supabase.com, exécutez le script SQL fourni, puis collez ici l'URL du projet et la clé publique (Project Settings → API).</p>
+      <form id="form-setup">
+        <label>URL du projet<input type="text" name="url" placeholder="https://xxxx.supabase.co" required></label>
+        <label>Clé publique<input type="text" name="key" placeholder="sb_publishable_..." required></label>
+        <button class="btn btn-primary" type="submit">Connecter</button>
+      </form>
+    </div>
+  </div>`;
+  document.getElementById('form-setup').onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(e.target);
+    state.supabaseUrl = (f.get('url')||'').trim();
+    state.supabaseKey = (f.get('key')||'').trim();
+    localStorage.setItem('apiservice_sb_url', state.supabaseUrl);
+    localStorage.setItem('apiservice_sb_key', state.supabaseKey);
+    initSupabase();
+    if(!sb){ alert("Impossible de se connecter avec ces informations. Vérifiez l'URL et la clé."); return; }
+    await handleAuthChange();
+  };
+}
 function renderLogin(){
   document.getElementById('app').innerHTML = `
   <div id="login-screen">
@@ -670,6 +696,7 @@ async function resetEverything(){
 
 /* ============================== RENDU PRINCIPAL ============================== */
 function render(){
+  if(!sb){ renderSetup(); return; }
   if(!session){ renderLogin(); return; }
   const view = ({
     dashboard:renderDashboard, stock:renderStock, achats:renderAchats, production:renderProduction,
