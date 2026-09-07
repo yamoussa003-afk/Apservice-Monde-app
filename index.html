@@ -226,12 +226,24 @@ function renderSetup(){
   document.getElementById('form-setup').onsubmit = async e=>{
     e.preventDefault();
     const f = new FormData(e.target);
-    state.supabaseUrl = (f.get('url')||'').trim();
-    state.supabaseKey = (f.get('key')||'').trim();
+    const url = (f.get('url')||'').trim().replace(/\/+$/,'');
+    const key = (f.get('key')||'').trim();
+    if(!/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(url)){
+      alert("Cette URL ne ressemble pas à une URL Supabase valide.\n\nElle doit ressembler exactement à :\nhttps://xxxxxxxxxxxx.supabase.co\n\n(sans texte après .co, sans espace). Retournez sur Supabase → Project Settings → API pour la recopier.");
+      return;
+    }
+    state.supabaseUrl = url;
+    state.supabaseKey = key;
+    let testClient;
+    try{ testClient = window.supabase.createClient(url, key); }catch(err){ alert('Impossible de créer la connexion : '+err.message); return; }
+    const {error} = await testClient.from('sites').select('id').limit(1);
+    if(error){
+      alert("La connexion à Supabase a échoué :\n\n"+error.message+"\n\nVérifiez que l'URL et la clé sont bien copiées depuis Project Settings → API de VOTRE projet APISERVICE MONDE, et que le script SQL a bien été exécuté.");
+      return;
+    }
     localStorage.setItem('apiservice_sb_url', state.supabaseUrl);
     localStorage.setItem('apiservice_sb_key', state.supabaseKey);
-    initSupabase();
-    if(!sb){ alert("Impossible de se connecter avec ces informations. Vérifiez l'URL et la clé."); return; }
+    sb = testClient;
     await handleAuthChange();
   };
 }
@@ -249,11 +261,20 @@ function renderLogin(){
       <div class="switch">
         ${loginMode==='signin' ? `Pas de compte ? <a id="to-signup">Créer un compte</a>` : `Déjà un compte ? <a id="to-signin">Se connecter</a>`}
       </div>
+      <div class="switch" style="margin-top:6px"><a id="to-reconfigure">Reconfigurer la connexion Supabase</a></div>
     </div>
   </div>`;
   bindLoginHandlers();
 }
 function bindLoginHandlers(){
+  const toReconfig = document.getElementById('to-reconfigure');
+  if(toReconfig) toReconfig.onclick = ()=>{
+    if(!confirm("Effacer la connexion Supabase actuelle pour la reconfigurer ?")) return;
+    localStorage.removeItem('apiservice_sb_url');
+    localStorage.removeItem('apiservice_sb_key');
+    state.supabaseUrl = ''; state.supabaseKey = ''; sb = null; session = null;
+    render();
+  };
   const toSignup = document.getElementById('to-signup');
   if(toSignup) toSignup.onclick = ()=>{ loginMode='signup'; renderLogin(); };
   const toSignin = document.getElementById('to-signin');
