@@ -335,7 +335,10 @@ function renderSidebar(){
 function renderDashboard(){
   const valeurStock = state.articles.reduce((s,a)=>s+state.sites.reduce((s2,site)=>s2+getStock(site.id,a.id),0)*a.prix_unitaire,0);
   const today = localDateStr(new Date());
-  const ventesJour = state.ventes.filter(v=>localDateStr(v.created_at)===today).reduce((s,v)=>s+v.quantite*v.prix_unitaire,0);
+  const ventesBoutiqueJour = state.ventes.filter(v=>localDateStr(v.created_at)===today).reduce((s,v)=>s+v.quantite*v.prix_unitaire,0);
+  const commandesJour = state.commandes_client.filter(c=>localDateStr(c.created_at)===today && c.statut!=='annulé').reduce((s,c)=>s+c.montant_total,0);
+  const ventesJour = ventesBoutiqueJour + commandesJour;
+  const commandesEnAttente = state.commandes_client.filter(c=>c.statut==='en_attente').length;
   const inscritsJour = state.inscriptions.filter(i=>localDateStr(i.created_at)===today).length;
   const sessionsAVenir = state.sessions_formation.filter(s=>new Date(s.date_debut)>=new Date()).length;
   const alertes = state.articles.filter(a=>state.sites.reduce((s,site)=>s+getStock(site.id,a.id),0) < a.seuil_min).length;
@@ -344,7 +347,8 @@ function renderDashboard(){
   <p class="muted">Vue d'ensemble de l'activité</p>
   <div class="grid" style="margin-top:16px">
     <div class="stat"><div class="label">Valeur du stock</div><div class="value">${fmt(valeurStock)}</div></div>
-    <div class="stat"><div class="label">Ventes du jour</div><div class="value">${fmt(ventesJour)}</div></div>
+    <div class="stat"><div class="label">Ventes du jour (boutique + en ligne)</div><div class="value">${fmt(ventesJour)}</div></div>
+    <div class="stat"><div class="label">Commandes en ligne en attente</div><div class="value" style="color:${commandesEnAttente?'var(--warn)':'inherit'}">${commandesEnAttente}</div></div>
     <div class="stat"><div class="label">Sessions de formation à venir</div><div class="value">${sessionsAVenir}</div></div>
     <div class="stat"><div class="label">Inscriptions aujourd'hui</div><div class="value">${inscritsJour}</div></div>
     <div class="stat"><div class="label">Articles sous seuil</div><div class="value" style="color:${alertes?'var(--danger)':'inherit'}">${alertes}</div></div>
@@ -660,9 +664,10 @@ function renderJournal(){
 function renderTresorerie(){
   const ops = state.tresorerie_operations;
   const totalVentes = state.ventes.reduce((s,v)=>s+v.quantite*v.prix_unitaire,0);
+  const totalCommandesPayees = state.commandes_client.filter(c=>c.statut==='payé'||c.statut==='expédié'||c.statut==='livré').reduce((s,c)=>s+c.montant_total,0);
   const totalInscriptionsPayees = state.inscriptions.filter(i=>i.statut_paiement==='payé').reduce((s,i)=>s+i.montant,0);
   const totalAchats = state.achats.reduce((s,c)=>s+c.quantite*c.prix_unitaire,0);
-  const encaissements = ops.filter(o=>o.type==='encaissement').reduce((s,o)=>s+o.montant,0)+totalVentes+totalInscriptionsPayees;
+  const encaissements = ops.filter(o=>o.type==='encaissement').reduce((s,o)=>s+o.montant,0)+totalVentes+totalCommandesPayees+totalInscriptionsPayees;
   const decaissements = ops.filter(o=>o.type==='decaissement').reduce((s,o)=>s+o.montant,0)+totalAchats;
   const solde = (state.meta.solde_initial||0) + encaissements - decaissements;
   return `
