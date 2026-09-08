@@ -299,16 +299,17 @@ function bindLoginHandlers(){
 /* ============================== NAVIGATION ============================== */
 const NAV = [
   {label:'Tableau de bord', tabs:[['dashboard','Dashboard']]},
-  {label:'Opérations', tabs:[['achats','Achats'],['production','Production'],['ventes','Ventes'],['formations','Formations'],['journal','Journal']]},
+  {label:'Opérations', tabs:[['achats','Achats'],['production','Production'],['ventes','Ventes'],['commandes-en-ligne','Commandes en ligne'],['formations','Formations'],['journal','Journal']]},
   {label:'Stock', tabs:[['stock','Articles & Stock']]},
   {label:'Finances', tabs:[['tresorerie','Trésorerie']]},
 ];
 function titleOf(id){ for(const g of NAV) for(const [tid,label] of g.tabs) if(tid===id) return label; return id; }
 
 function renderSidebar(){
+  const nbEnAttente = state.commandes_client.filter(c=>c.statut==='en_attente').length;
   const groups = NAV.map(g=>`
     <div class="nav-section">${g.label}</div>
-    ${g.tabs.map(([id,label])=>`<button data-tab="${id}" class="${currentTab===id?'active':''}"><span>${label}</span></button>`).join('')}
+    ${g.tabs.map(([id,label])=>`<button data-tab="${id}" class="${currentTab===id?'active':''}"><span>${label}</span>${id==='commandes-en-ligne'&&nbEnAttente?`<span class="badge">${nbEnAttente}</span>`:''}</button>`).join('')}
   `).join('');
   return `
   <div class="sidebar">
@@ -579,6 +580,45 @@ function renderFormations(){
 }
 
 /* ============================== JOURNAL (MOUVEMENTS) ============================== */
+/* ============================== COMMANDES EN LIGNE ============================== */
+function renderCommandesEnLigne(){
+  const list = state.commandes_client;
+  return `
+  <h1>Commandes en ligne</h1>
+  <p class="muted">Commandes passées par les clients depuis la boutique</p>
+  <div class="card">
+    ${list.map(c=>{
+      const lignes = state.commande_lignes.filter(l=>l.commande_id===c.id);
+      return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <strong>${c.nom_client||'—'}</strong> · <span class="muted">${c.contact_client||''}</span>
+            <div class="muted">${new Date(c.created_at).toLocaleString('fr-FR')} · ${c.adresse_livraison||'Pas d\'adresse fournie'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:700">${fmt(c.montant_total)}</div>
+            <span class="pill ${c.statut==='payé'?'pill-ok':c.statut==='annulé'?'pill-danger':c.statut==='livré'?'pill-ok':'pill-warn'}">${c.statut}</span>
+          </div>
+        </div>
+        <table style="margin-top:8px"><tr><th>Article</th><th>Quantité</th><th>Prix</th><th>Sous-total</th></tr>
+        ${lignes.map(l=>`<tr><td>${articleName(l.article_id)}</td><td>${l.quantite}</td><td>${fmt(l.prix_unitaire)}</td><td>${fmt(l.quantite*l.prix_unitaire)}</td></tr>`).join('')}
+        </table>
+        <div class="inline" style="margin-top:10px;align-items:center">
+          <label style="min-width:160px">Statut<select data-order-status="${c.id}">
+            <option value="en_attente" ${c.statut==='en_attente'?'selected':''}>En attente</option>
+            <option value="payé" ${c.statut==='payé'?'selected':''}>Payé</option>
+            <option value="expédié" ${c.statut==='expédié'?'selected':''}>Expédié</option>
+            <option value="livré" ${c.statut==='livré'?'selected':''}>Livré</option>
+            <option value="annulé" ${c.statut==='annulé'?'selected':''}>Annulé</option>
+          </select></label>
+          <label style="min-width:160px">Site de sortie de stock<select data-order-site="${c.id}">${state.sites.map(s=>`<option value="${s.id}">${s.nom}</option>`).join('')}</select></label>
+          ${c.stock_deduit ? '<span class="pill pill-ok">Stock déjà déduit</span>' : `<button class="btn btn-primary" data-confirm-order="${c.id}">Confirmer &amp; déduire le stock</button>`}
+        </div>
+      </div>`;
+    }).join('') || '<p class="muted">Aucune commande en ligne pour le moment.</p>'}
+  </div>`;
+}
+
 function renderJournal(){
   const list = state.mouvements;
   return `
@@ -722,7 +762,7 @@ function render(){
   const view = ({
     dashboard:renderDashboard, stock:renderStock, achats:renderAchats, production:renderProduction,
     ventes:renderVentes, formations:renderFormations, journal:renderJournal, tresorerie:renderTresorerie,
-    parametres:renderParametres
+    'commandes-en-ligne':renderCommandesEnLigne, parametres:renderParametres
   })[currentTab] || renderDashboard;
   document.getElementById('app').innerHTML = `
   <div class="layout">
@@ -1150,6 +1190,33 @@ function bindHandlers(){
     c.statut = 'recu';
     await dbUpdate('achats', c.id, {statut:'recu'});
     await stockDelta(c.article_id, c.site_id, c.quantite, 'Achat', 'Achat auprès de '+partenaireName(c.partenaire_id));
+    render();
+  });
+
+  document.querySelectorAll('[data-order-status]').forEach(sel=>sel.onchange=async ()=>{
+    const c = state.commandes_client.find(x=>x.id===sel.dataset.orderStatus); if(!c) return;
+    c.statut = sel.value;
+    await dbUpdate('commandes_client', c.id, {statut:c.statut});
+    render();
+  });
+  document.querySelectorAll('[data-confirm-order]').forEach(btn=>btn.onclick=async ()=>{
+    const c = state.commandes_client.find(x=>x.id===btn.dataset.confirmOrder); if(!c) return;
+    const siteSel = document.querySelector(`[data-order-site="${c.id}"]`);
+    const siteId = siteSel ? siteSel.value : (state.sites[0]?.id);
+    if(!siteId){ alert("Créez d'abord un site dans Paramètres."); return; }
+    const lignes = state.commande_lignes.filter(l=>l.commande_id===c.id);
+    for(const l of lignes){
+      if(getStock(siteId, l.article_id) < l.quantite){
+        alert('Stock insuffisant en '+articleName(l.article_id)+' sur le site sélectionné (disponible : '+getStock(siteId,l.article_id)+').');
+        return;
+      }
+    }
+    for(const l of lignes){
+      await stockDelta(l.article_id, siteId, -l.quantite, 'Vente', 'Commande en ligne de '+(c.nom_client||c.contact_client||''));
+    }
+    c.stock_deduit = true;
+    if(c.statut==='en_attente') c.statut = 'payé';
+    await dbUpdate('commandes_client', c.id, {stock_deduit:true, statut:c.statut});
     render();
   });
 
