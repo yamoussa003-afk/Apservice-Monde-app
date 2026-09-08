@@ -154,7 +154,13 @@ async function dbUpsertSingleton(table, row){
 async function refreshAll(){
   if(!sb) return;
   for(const t of TABLES){
-    const {data, error} = await sb.from(t).select('*').order('created_at',{ascending:false});
+    let {data, error} = await sb.from(t).select('*').order('created_at',{ascending:false});
+    if(error){
+      // Certaines tables n'ont pas de colonne created_at — on retente sans tri plutôt que d'échouer silencieusement.
+      const retry = await sb.from(t).select('*');
+      data = retry.data; error = retry.error;
+      if(error) console.error('Échec de chargement de la table', t, error);
+    }
     if(!error && data) state[t] = data;
   }
   const {data:metaData} = await sb.from('meta').select('*').eq('id','singleton').maybeSingle();
