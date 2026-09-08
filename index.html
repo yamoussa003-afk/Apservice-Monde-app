@@ -583,8 +583,8 @@ function renderFormations(){
   </div>
   <div class="card">
     <h2>Liste des inscrits</h2>
-    <div class="table-wrap"><table><tr><th>Session</th><th>Nom</th><th>Contact</th><th>Montant</th><th>Statut</th><th></th></tr>
-    ${state.inscriptions.map(i=>`<tr><td>${sessionLabel(i.session_id)}</td><td>${i.nom}</td><td class="muted">${i.contact}</td><td>${fmt(i.montant)}</td><td><span class="pill ${i.statut_paiement==='payé'?'pill-ok':'pill-warn'}">${i.statut_paiement}</span></td><td><button class="btn btn-sm" data-edit-inscription="${i.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Aucune inscription.</td></tr>'}
+    <div class="table-wrap"><table><tr><th>Session</th><th>Nom</th><th>Contact</th><th>Montant</th><th>Statut</th><th></th><th></th></tr>
+    ${state.inscriptions.map(i=>`<tr><td>${sessionLabel(i.session_id)}</td><td>${i.nom}</td><td class="muted">${i.contact}</td><td>${fmt(i.montant)}</td><td><span class="pill ${i.statut_paiement==='payé'?'pill-ok':'pill-warn'}">${i.statut_paiement}</span></td><td>${i.statut_paiement!=='payé'?`<button class="btn btn-primary btn-sm" data-mark-paid="${i.id}">Marquer payé</button>`:''}</td><td><button class="btn btn-sm" data-edit-inscription="${i.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="7" class="muted">Aucune inscription.</td></tr>'}
     </table></div>
   </div>`;
 }
@@ -1194,6 +1194,12 @@ function bindHandlers(){
   document.querySelectorAll('[data-edit-formation]').forEach(btn=>btn.onclick=()=>openEditFormation(btn.dataset.editFormation));
   document.querySelectorAll('[data-edit-session]').forEach(btn=>btn.onclick=()=>openEditSession(btn.dataset.editSession));
   document.querySelectorAll('[data-edit-inscription]').forEach(btn=>btn.onclick=()=>openEditInscription(btn.dataset.editInscription));
+  document.querySelectorAll('[data-mark-paid]').forEach(btn=>btn.onclick=async ()=>{
+    const i = state.inscriptions.find(x=>x.id===btn.dataset.markPaid); if(!i) return;
+    i.statut_paiement = 'payé';
+    await dbUpdate('inscriptions', i.id, {statut_paiement:'payé'});
+    render();
+  });
   document.querySelectorAll('[data-delete-recette]').forEach(btn=>btn.onclick=()=>deleteRecette(btn.dataset.deleteRecette));
 
   document.querySelectorAll('[data-receive-achat]').forEach(btn=>btn.onclick=async ()=>{
