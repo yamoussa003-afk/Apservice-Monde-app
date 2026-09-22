@@ -323,6 +323,7 @@ function renderSidebar(){
     ${groups}
     <div class="nav-section">Configuration</div>
     <button data-tab="parametres" class="${currentTab==='parametres'?'active':''}"><span>Paramètres</span></button>
+    <button data-tab="personnel" class="${currentTab==='personnel'?'active':''}"><span>Personnel</span></button>
     <div style="flex:1"></div>
     <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.12);margin-top:10px">
       <button id="btn-signout" class="btn btn-sm" style="width:100%">Se déconnecter</button>
@@ -742,6 +743,33 @@ function renderTresorerie(){
 }
 
 /* ============================== PARAMÈTRES ============================== */
+/* ============================== PERSONNEL ============================== */
+let personnelList = [];
+async function loadPersonnel(){
+  if(!sb) return;
+  const {data, error} = await sb.rpc('list_personnel');
+  if(!error && data) personnelList = data;
+}
+function renderPersonnel(){
+  return `
+  <h1>Personnel</h1>
+  <p class="muted">Comptes autorisés à utiliser le back-office APISERVICE MONDE</p>
+  <div class="card">
+    <h2>Ajouter un membre du personnel</h2>
+    <p class="muted">La personne doit d'abord créer elle-même un compte depuis l'écran de connexion du back-office (avec son email et un mot de passe). Une fois cela fait, entrez son email ci-dessous pour lui donner accès.</p>
+    <form class="inline" id="form-add-personnel">
+      <label style="min-width:280px">Email du compte déjà créé<input type="email" name="email" required></label>
+      <button class="btn btn-primary" type="submit">Autoriser l'accès</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Membres actuels</h2>
+    <table><tr><th>Email</th><th>Ajouté le</th><th></th></tr>
+    ${personnelList.map(p=>`<tr><td>${p.email}</td><td class="muted">${new Date(p.created_at).toLocaleDateString('fr-FR')}</td><td>${p.id!==session?.user?.id?`<button class="btn btn-sm btn-danger-outline" data-remove-personnel="${p.email}">Retirer</button>`:'<span class="muted">Vous</span>'}</td></tr>`).join('') || '<tr><td colspan="3" class="muted">Aucun membre chargé — cliquez sur Actualiser les données.</td></tr>'}
+    </table>
+  </div>`;
+}
+
 function renderParametres(){
   return `
   <h1>Paramètres</h1>
@@ -811,7 +839,7 @@ function render(){
   const view = ({
     dashboard:renderDashboard, stock:renderStock, achats:renderAchats, production:renderProduction,
     ventes:renderVentes, formations:renderFormations, journal:renderJournal, tresorerie:renderTresorerie,
-    'commandes-en-ligne':renderCommandesEnLigne, parametres:renderParametres
+    'commandes-en-ligne':renderCommandesEnLigne, parametres:renderParametres, personnel:renderPersonnel
   })[currentTab] || renderDashboard;
   document.getElementById('app').innerHTML = `
   <div class="layout">
@@ -1244,7 +1272,11 @@ async function deleteRecette(id){
 
 /* ============================== HANDLERS ============================== */
 function bindHandlers(){
-  document.querySelectorAll('[data-tab]').forEach(btn=>btn.onclick=()=>{ currentTab = btn.dataset.tab; render(); });
+  document.querySelectorAll('[data-tab]').forEach(btn=>btn.onclick=async ()=>{
+    currentTab = btn.dataset.tab;
+    if(currentTab==='personnel'){ await loadPersonnel(); }
+    render();
+  });
   const btnSignout = document.getElementById('btn-signout');
   if(btnSignout) btnSignout.onclick = async ()=>{ if(sb) await sb.auth.signOut(); session=null; render(); };
   const btnRefresh = document.getElementById('btn-refresh');
@@ -1302,6 +1334,25 @@ function bindHandlers(){
 
   const fSearch = document.getElementById('form-stock-search');
   if(fSearch) fSearch.onsubmit = e=>{ e.preventDefault(); window.__stockFilter = new FormData(fSearch).get('q'); render(); };
+
+  const fAddPersonnel = document.getElementById('form-add-personnel');
+  if(fAddPersonnel) fAddPersonnel.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fAddPersonnel);
+    const email = (f.get('email')||'').trim();
+    const {error} = await sb.rpc('add_personnel_by_email', {target_email:email});
+    if(error){ alert('Erreur : '+error.message); return; }
+    alert(email+' a maintenant accès au back-office.');
+    fAddPersonnel.reset();
+    await loadPersonnel(); render();
+  };
+  document.querySelectorAll('[data-remove-personnel]').forEach(btn=>btn.onclick=async ()=>{
+    const email = btn.dataset.removePersonnel;
+    if(!confirm('Retirer l\'accès de '+email+' au back-office ?')) return;
+    const {error} = await sb.rpc('remove_personnel_by_email', {target_email:email});
+    if(error){ alert('Erreur : '+error.message); return; }
+    await loadPersonnel(); render();
+  });
 
   const fSupa = document.getElementById('form-supabase');
   if(fSupa) fSupa.onsubmit = async e=>{
