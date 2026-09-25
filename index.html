@@ -12,6 +12,8 @@
 <meta name="apple-mobile-web-app-title" content="APISERVICE">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --bg:#FBF6EA; --surface:#FFFDF5; --surface-2:#F3EAD0;
@@ -98,7 +100,7 @@ form.inline{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 /* ============================== CONFIG & ÉTAT ============================== */
 const TABLES = ['sites','partenaires','articles','stock','recettes','recette_lignes',
   'ordres_production','achats','ventes','mouvements','formations','sessions_formation',
-  'inscriptions','commandes_client','commande_lignes','paiements','tresorerie_operations'];
+  'inscriptions','commandes_client','commande_lignes','paiements','tresorerie_operations','ruches'];
 
 let sb = null;
 let session = null;
@@ -113,7 +115,7 @@ const SUPABASE_KEY = 'sb_publishable_XCu110NkexSbU0f6bE-SPw_ZcySI2BM';
 let state = {
   sites:[], partenaires:[], articles:[], stock:[], recettes:[], recette_lignes:[],
   ordres_production:[], achats:[], ventes:[], mouvements:[], formations:[], sessions_formation:[],
-  inscriptions:[], commandes_client:[], commande_lignes:[], paiements:[], tresorerie_operations:[],
+  inscriptions:[], commandes_client:[], commande_lignes:[], paiements:[], tresorerie_operations:[], ruches:[],
   meta:{id:'singleton', solde_initial:0},
   supabaseUrl: SUPABASE_URL,
   supabaseKey: SUPABASE_KEY
@@ -272,7 +274,7 @@ function bindLoginHandlers(){
 /* ============================== NAVIGATION ============================== */
 const NAV = [
   {label:'Tableau de bord', tabs:[['dashboard','Dashboard']]},
-  {label:'Opérations', tabs:[['achats','Achats'],['production','Production'],['ventes','Ventes'],['commandes-en-ligne','Commandes en ligne'],['formations','Formations'],['journal','Journal']]},
+  {label:'Opérations', tabs:[['achats','Achats'],['production','Production'],['ventes','Ventes'],['commandes-en-ligne','Commandes en ligne'],['formations','Formations'],['ruchers','Ruchers'],['journal','Journal']]},
   {label:'Stock', tabs:[['stock','Articles & Stock']]},
   {label:'Finances', tabs:[['tresorerie','Trésorerie']]},
 ];
@@ -519,22 +521,24 @@ function renderVentes(){
 function renderFormations(){
   return `
   <h1>Formations</h1>
-  <p class="muted">Catalogue, sessions programmées et inscriptions</p>
+  <p class="muted">Catalogue (présentiel ou vidéo à la demande), sessions programmées et inscriptions</p>
   <div class="card">
     <h2>Catalogue de formations</h2>
-    <div class="table-wrap"><table><tr><th>Titre</th><th>Durée</th><th>Prix</th><th></th></tr>
-    ${state.formations.map(f=>`<tr><td>${f.titre}</td><td class="muted">${f.duree||'—'}</td><td>${fmt(f.prix)}</td><td><button class="btn btn-sm" data-edit-formation="${f.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Aucune formation.</td></tr>'}
+    <div class="table-wrap"><table><tr><th>Titre</th><th>Type</th><th>Durée</th><th>Prix</th><th></th></tr>
+    ${state.formations.map(f=>`<tr><td>${f.titre}</td><td><span class="pill ${f.type==='video'?'pill-accent':'pill-muted'}">${f.type==='video'?'Vidéo à la demande':'Présentiel'}</span></td><td class="muted">${f.duree||'—'}</td><td>${fmt(f.prix)}</td><td><button class="btn btn-sm" data-edit-formation="${f.id}">Modifier</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Aucune formation.</td></tr>'}
     </table></div>
     <form class="inline" id="form-formation" style="margin-top:12px">
       <label style="min-width:200px">Titre<input type="text" name="titre" placeholder="Ex : Initiation à l'apiculture" required></label>
+      <label>Type<select name="type" id="formation-type-select"><option value="presentiel">Présentiel (sessions programmées)</option><option value="video">Vidéo à la demande</option></select></label>
       <label>Description<input type="text" name="description" placeholder="Optionnel"></label>
-      <label>Durée<input type="text" name="duree" placeholder="Ex : 3 jours"></label>
+      <label>Durée<input type="text" name="duree" placeholder="Ex : 3 jours ou 2h30"></label>
+      <label id="video-url-label" style="display:none">Lien vidéo (YouTube/Vimeo non-répertorié)<input type="text" name="videoUrl" placeholder="https://..."></label>
       <label>Prix<input type="number" name="prix" min="0" step="100" required></label>
       <button class="btn btn-primary" type="submit">Ajouter la formation</button>
     </form>
   </div>
   <div class="card">
-    <h2>Sessions programmées</h2>
+    <h2>Sessions programmées <span class="muted" style="font-weight:400">(formations présentielles uniquement)</span></h2>
     <div class="table-wrap"><table><tr><th>Formation</th><th>Début</th><th>Fin</th><th>Lieu</th><th>Places</th><th>Inscrits</th><th></th></tr>
     ${state.sessions_formation.map(s=>{
       const inscrits = state.inscriptions.filter(i=>i.session_id===s.id).length;
@@ -542,7 +546,7 @@ function renderFormations(){
     }).join('') || '<tr><td colspan="7" class="muted">Aucune session.</td></tr>'}
     </table></div>
     <form class="inline" id="form-session" style="margin-top:12px">
-      <label>Formation<select name="formationId">${state.formations.map(f=>`<option value="${f.id}">${f.titre}</option>`).join('') || '<option value="">Créez d\'abord une formation</option>'}</select></label>
+      <label>Formation<select name="formationId">${state.formations.filter(f=>f.type!=='video').map(f=>`<option value="${f.id}">${f.titre}</option>`).join('') || '<option value="">Créez d\'abord une formation présentielle</option>'}</select></label>
       <label>Date de début<input type="date" name="dateDebut" required></label>
       <label>Date de fin<input type="date" name="dateFin"></label>
       <label>Lieu<input type="text" name="lieu"></label>
@@ -551,9 +555,10 @@ function renderFormations(){
     </form>
   </div>
   <div class="card">
-    <h2>Inscrire un participant</h2>
+    <h2>Inscrire un participant <span class="muted" style="font-weight:400">(présentiel avec session, ou vidéo directement)</span></h2>
     <form class="inline" id="form-inscription">
-      <label>Session<select name="sessionId">${state.sessions_formation.map(s=>`<option value="${s.id}">${sessionLabel(s.id)}</option>`).join('') || '<option value="">Aucune session</option>'}</select></label>
+      <label>Formation vidéo (optionnel)<select name="formationId"><option value="">— Aucune, voir session ci-dessous —</option>${state.formations.filter(f=>f.type==='video').map(f=>`<option value="${f.id}">${f.titre}</option>`).join('')}</select></label>
+      <label>OU Session présentielle<select name="sessionId"><option value="">—</option>${state.sessions_formation.map(s=>`<option value="${s.id}">${sessionLabel(s.id)}</option>`).join('')}</select></label>
       <label>Nom du participant<input type="text" name="nom" required></label>
       <label>Contact<input type="text" name="contact" required></label>
       <label>Montant<input type="number" name="montant" min="0" step="100"></label>
@@ -568,7 +573,7 @@ function renderFormations(){
       const paye = state.paiements.filter(p=>p.inscription_id===i.id && p.statut==='reussi').reduce((s,p)=>s+p.montant,0);
       const reste = Math.max(0, i.montant - paye);
       const statut = paye<=0 ? 'en_attente' : (reste<=0 ? 'payé' : 'partiel');
-      return `<tr><td>${sessionLabel(i.session_id)}</td><td>${i.nom}</td><td class="muted">${i.contact}</td><td>${fmt(i.montant)}</td><td>${fmt(paye)}</td><td>${fmt(reste)}</td>
+      return `<tr><td>${i.session_id?sessionLabel(i.session_id):(formationName(i.formation_id)+' (vidéo)')}</td><td>${i.nom}</td><td class="muted">${i.contact}</td><td>${fmt(i.montant)}</td><td>${fmt(paye)}</td><td>${fmt(reste)}</td>
       <td><span class="pill ${statut==='payé'?'pill-ok':statut==='partiel'?'pill-accent':'pill-warn'}">${statut==='payé'?'Payé':statut==='partiel'?'Partiel':'En attente'}</span></td>
       <td>${reste>0?`<button class="btn btn-primary btn-sm" data-add-payment-insc="${i.id}">Enregistrer un versement</button>`:''}</td>
       <td><button class="btn btn-sm" data-edit-inscription="${i.id}">Modifier</button></td></tr>`;
@@ -614,6 +619,54 @@ function renderCommandesEnLigne(){
         </div>
       </div>`;
     }).join('') || '<p class="muted">Aucune commande en ligne pour le moment.</p>'}
+  </div>`;
+}
+
+/* ============================== RUCHERS ============================== */
+function cleanPhoneIntl(contact){
+  let digits = (contact||'').replace(/\D/g,'');
+  if(digits.startsWith('0')) digits = '229'+digits.slice(1);
+  else if(!digits.startsWith('229')) digits = '229'+digits;
+  return digits;
+}
+function renderRuchers(){
+  const apiculteurs = state.partenaires.filter(p=>p.type==='apiculteur');
+  return `
+  <h1>Ruchers</h1>
+  <p class="muted">Localisation des ruches de vos apiculteurs partenaires, et rappels de récolte</p>
+  <div class="card">
+    <h2>Carte des ruches</h2>
+    <div id="ruches-map" style="height:360px;border-radius:8px;border:1px solid var(--border)"></div>
+  </div>
+  <div class="card">
+    <h2>Apiculteurs partenaires</h2>
+    <table><tr><th>Nom</th><th>Contact</th><th>Localisation</th><th>Ruches</th><th></th></tr>
+    ${apiculteurs.map(p=>{
+      const nbRuches = state.ruches.filter(r=>r.partenaire_id===p.id).length;
+      const msg = encodeURIComponent("Bonjour "+p.nom+", c'est le moment de commencer le retrait du miel brut. Merci de nous contacter pour organiser la collecte. — APISERVICE MONDE");
+      const phone = cleanPhoneIntl(p.contact);
+      return `<tr><td>${p.nom}</td><td class="muted">${p.contact||'—'}</td><td class="muted">${p.localisation||'—'}</td><td>${nbRuches}</td>
+      <td>${p.contact?`<a class="btn btn-sm" href="https://wa.me/${phone}?text=${msg}" target="_blank">WhatsApp</a> <a class="btn btn-sm" href="sms:${phone}?body=${msg}">SMS</a>`:'<span class="muted">Pas de contact</span>'}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="muted">Aucun apiculteur enregistré (Paramètres → Apiculteurs & fournisseurs).</td></tr>'}
+    </table>
+  </div>
+  <div class="card">
+    <h2>Ajouter une ruche</h2>
+    <form class="inline" id="form-ruche">
+      <label>Apiculteur<select name="partenaireId">${apiculteurs.map(p=>`<option value="${p.id}">${p.nom}</option>`).join('') || '<option value="">Aucun apiculteur</option>'}</select></label>
+      <label>Nom / identifiant<input type="text" name="nom" placeholder="Ex : Rucher Nord 1" required></label>
+      <label>Latitude<input type="number" name="latitude" step="0.000001" placeholder="Ex : 9.3372"></label>
+      <label>Longitude<input type="number" name="longitude" step="0.000001" placeholder="Ex : 2.6303"></label>
+      <button type="button" class="btn" id="btn-use-location">Utiliser ma position actuelle</button>
+      <label>Notes<input type="text" name="notes" placeholder="Optionnel"></label>
+      <button class="btn btn-primary" type="submit">Ajouter la ruche</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>Ruches enregistrées</h2>
+    <table><tr><th>Nom</th><th>Apiculteur</th><th>Coordonnées</th><th>Notes</th><th></th></tr>
+    ${state.ruches.map(r=>`<tr><td>${r.nom}</td><td>${partenaireName(r.partenaire_id)}</td><td class="muted">${r.latitude&&r.longitude?r.latitude+', '+r.longitude:'Non localisée'}</td><td class="muted">${r.notes||''}</td><td><button class="btn btn-sm btn-danger-outline" data-delete-ruche="${r.id}">Supprimer</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Aucune ruche enregistrée.</td></tr>'}
+    </table>
   </div>`;
 }
 
@@ -809,7 +862,7 @@ function render(){
   const view = ({
     dashboard:renderDashboard, stock:renderStock, achats:renderAchats, production:renderProduction,
     ventes:renderVentes, formations:renderFormations, journal:renderJournal, tresorerie:renderTresorerie,
-    'commandes-en-ligne':renderCommandesEnLigne, parametres:renderParametres, personnel:renderPersonnel
+    'commandes-en-ligne':renderCommandesEnLigne, parametres:renderParametres, personnel:renderPersonnel, ruchers:renderRuchers
   })[currentTab] || renderDashboard;
   document.getElementById('app').innerHTML = `
   <div class="layout">
@@ -1127,8 +1180,10 @@ function openEditFormation(id){
     <h2>Modifier la formation <button class="modal-close" id="modal-x">×</button></h2>
     <form id="form-edit-formation">
       <label>Titre<input type="text" name="titre" value="${(f0.titre||'').replace(/"/g,'&quot;')}" required></label>
+      <label>Type<select name="type"><option value="presentiel" ${f0.type!=='video'?'selected':''}>Présentiel</option><option value="video" ${f0.type==='video'?'selected':''}>Vidéo à la demande</option></select></label>
       <label>Description<input type="text" name="description" value="${(f0.description||'').replace(/"/g,'&quot;')}"></label>
       <label>Durée<input type="text" name="duree" value="${(f0.duree||'').replace(/"/g,'&quot;')}"></label>
+      <label>Lien vidéo (si type vidéo)<input type="text" name="videoUrl" value="${(f0.video_url||'').replace(/"/g,'&quot;')}"></label>
       <label>Prix<input type="number" name="prix" min="0" step="100" value="${f0.prix}"></label>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger-outline" id="modal-delete">Supprimer</button>
@@ -1141,8 +1196,8 @@ function openEditFormation(id){
   document.getElementById('form-edit-formation').onsubmit = async e=>{
     e.preventDefault();
     const f = new FormData(e.target);
-    Object.assign(f0, {titre:f.get('titre'), description:f.get('description'), duree:f.get('duree'), prix:parseFloat(f.get('prix'))||0});
-    await dbUpdate('formations', id, {titre:f0.titre, description:f0.description, duree:f0.duree, prix:f0.prix});
+    Object.assign(f0, {titre:f.get('titre'), type:f.get('type'), video_url:f.get('videoUrl')||'', description:f.get('description'), duree:f.get('duree'), prix:parseFloat(f.get('prix'))||0});
+    await dbUpdate('formations', id, {titre:f0.titre, type:f0.type, video_url:f0.video_url, description:f0.description, duree:f0.duree, prix:f0.prix});
     closeModal(); render();
   };
   document.getElementById('modal-delete').onclick = async ()=>{
@@ -1305,6 +1360,48 @@ function bindHandlers(){
   const fSearch = document.getElementById('form-stock-search');
   if(fSearch) fSearch.onsubmit = e=>{ e.preventDefault(); window.__stockFilter = new FormData(fSearch).get('q'); render(); };
 
+  const ruchesMapEl = document.getElementById('ruches-map');
+  if(ruchesMapEl && window.L){
+    const located = state.ruches.filter(r=>r.latitude && r.longitude);
+    const center = located.length ? [located[0].latitude, located[0].longitude] : [9.3077, 2.3158]; // Bénin, par défaut
+    const map = L.map('ruches-map').setView(center, located.length ? 9 : 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
+    }).addTo(map);
+    located.forEach(r=>{
+      L.marker([r.latitude, r.longitude]).addTo(map).bindPopup(`<strong>${r.nom}</strong><br>${partenaireName(r.partenaire_id)}${r.notes?'<br>'+r.notes:''}`);
+    });
+    setTimeout(()=>map.invalidateSize(), 100);
+  }
+  const fRuche = document.getElementById('form-ruche');
+  if(fRuche) fRuche.onsubmit = async e=>{
+    e.preventDefault();
+    const f = new FormData(fRuche);
+    const row = {id:uid('ruche'), partenaire_id:f.get('partenaireId'), nom:f.get('nom'),
+      latitude:f.get('latitude')?parseFloat(f.get('latitude')):null, longitude:f.get('longitude')?parseFloat(f.get('longitude')):null,
+      notes:f.get('notes')||'', created_at:nowISO()};
+    state.ruches.unshift(row); await dbInsert('ruches', row); fRuche.reset(); render();
+  };
+  const btnUseLoc = document.getElementById('btn-use-location');
+  if(btnUseLoc) btnUseLoc.onclick = ()=>{
+    if(!navigator.geolocation){ alert('Géolocalisation non disponible sur cet appareil.'); return; }
+    btnUseLoc.textContent = 'Localisation en cours…';
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        document.querySelector('#form-ruche [name="latitude"]').value = pos.coords.latitude.toFixed(6);
+        document.querySelector('#form-ruche [name="longitude"]').value = pos.coords.longitude.toFixed(6);
+        btnUseLoc.textContent = 'Utiliser ma position actuelle';
+      },
+      err=>{ alert("Impossible d'obtenir la position : "+err.message); btnUseLoc.textContent = 'Utiliser ma position actuelle'; }
+    );
+  };
+  document.querySelectorAll('[data-delete-ruche]').forEach(btn=>btn.onclick=async ()=>{
+    if(!confirm('Supprimer cette ruche ?')) return;
+    state.ruches = state.ruches.filter(x=>x.id!==btn.dataset.deleteRuche);
+    await dbDelete('ruches', btn.dataset.deleteRuche);
+    render();
+  });
+
   const fAddPersonnel = document.getElementById('form-add-personnel');
   if(fAddPersonnel) fAddPersonnel.onsubmit = async e=>{
     e.preventDefault();
@@ -1442,8 +1539,12 @@ function bindHandlers(){
   if(fForm) fForm.onsubmit = async e=>{
     e.preventDefault();
     const f = new FormData(fForm);
-    const row = {id:uid('form'), titre:f.get('titre'), description:f.get('description')||'', duree:f.get('duree')||'', prix:parseFloat(f.get('prix'))||0, created_at:nowISO()};
+    const row = {id:uid('form'), titre:f.get('titre'), type:f.get('type')||'presentiel', video_url:f.get('videoUrl')||'', description:f.get('description')||'', duree:f.get('duree')||'', prix:parseFloat(f.get('prix'))||0, created_at:nowISO()};
     state.formations.unshift(row); await dbInsert('formations', row); fForm.reset(); render();
+  };
+  const typeSelect = document.getElementById('formation-type-select');
+  if(typeSelect) typeSelect.onchange = ()=>{
+    document.getElementById('video-url-label').style.display = typeSelect.value==='video' ? '' : 'none';
   };
   const fSession = document.getElementById('form-session');
   if(fSession) fSession.onsubmit = async e=>{
@@ -1456,15 +1557,17 @@ function bindHandlers(){
   if(fInsc) fInsc.onsubmit = async e=>{
     e.preventDefault();
     const f = new FormData(fInsc);
-    const sessionId = f.get('sessionId');
-    const s = state.sessions_formation.find(x=>x.id===sessionId);
+    const sessionId = f.get('sessionId') || null;
+    const formationId = f.get('formationId') || null;
+    if(!sessionId && !formationId){ alert('Choisissez une formation vidéo ou une session présentielle.'); return; }
+    const s = sessionId ? state.sessions_formation.find(x=>x.id===sessionId) : null;
     if(s){
       const inscrits = state.inscriptions.filter(i=>i.session_id===sessionId).length;
       if(inscrits >= s.places_total){ alert('Cette session est complète ('+s.places_total+' places).'); return; }
     }
     const montant = parseFloat(f.get('montant'))||0;
     const statutInitial = f.get('statutPaiement');
-    const row = {id:uid('insc'), session_id:sessionId, nom:f.get('nom'), contact:f.get('contact'), montant, statut_paiement:statutInitial, created_at:nowISO()};
+    const row = {id:uid('insc'), session_id:sessionId, formation_id:formationId, nom:f.get('nom'), contact:f.get('contact'), montant, statut_paiement:statutInitial, created_at:nowISO()};
     state.inscriptions.unshift(row); await dbInsert('inscriptions', row);
     if(statutInitial==='payé' && montant>0){
       const pay = {id:uid('pay'), commande_id:null, inscription_id:row.id, montant, methode:'especes', reference_externe:'', statut:'reussi', created_at:nowISO()};
